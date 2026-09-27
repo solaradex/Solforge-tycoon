@@ -1,0 +1,96 @@
+name: Deploy SolForge Mainnet
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+      SOLFORGE_PROGRAM_ID: ${{ secrets.SOLFORGE_PROGRAM_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v2.3.0/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          solana --version
+
+      - name: Install Anchor
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          avm install 0.32.1
+          avm use 0.32.1
+          anchor --version
+
+      - name: Install JavaScript dependencies
+        run: npm install
+
+      - name: Restore deployer wallet
+        env:
+          DEPLOYER_KEYPAIR_B64: ${{ secrets.SOLANA_DEPLOYER_KEYPAIR_B64 }}
+        run: |
+          mkdir -p "$HOME/.config/solana"
+          printf '%s' "$DEPLOYER_KEYPAIR_B64" | base64 --decode > "$HOME/.config/solana/id.json"
+          chmod 600 "$HOME/.config/solana/id.json"
+          solana config set --url mainnet-beta --keypair "$HOME/.config/solana/id.json"
+
+      - name: Restore program keypair
+        env:
+          PROGRAM_KEYPAIR_B64: ${{ secrets.SOLFORGE_PROGRAM_KEYPAIR_B64 }}
+        run: |
+          mkdir -p target/deploy
+          printf '%s' "$PROGRAM_KEYPAIR_B64" | base64 --decode > target/deploy/solforge_game-keypair.json
+          chmod 600 target/deploy/solforge_game-keypair.json
+
+      - name: Sync program ID
+        run: anchor keys sync
+
+      - name: Verify deployer and program IDs
+        run: |
+          solana address
+          anchor keys list
+
+      - name: Build program
+        run: anchor build
+
+      - name: Deploy program
+        run: anchor deploy --provider.cluster mainnet --provider.wallet "$HOME/.config/solana/id.json" --program-name solforge_game
+
+      - name: Create HASH mint
+        run: npm run create:hash-token
+
+      - name: Initialize game config on-chain
+        run: node scripts/initialize-game.mjs
+
+      - name: Transfer HASH mint authority to game PDA
+        run: npm run set:hash-mint-authority
+
+      - name: Publish deployment metadata
+        run: |
+          mkdir -p deployments
+          node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('deployments/hash-token.json','utf8')); const program=process.env.SOLFORGE_PROGRAM_ID || p.gameProgram; fs.writeFileSync('deployments/solforge-mainnet.json', JSON.stringify({network:'mainnet-beta', programId:program, hashMint:p.mint, tokenProgram:p.tokenProgram, hashDecimals:p.decimals, maxHashSupply:1000000000}, null, 2)+'\\n')"
+
+      - name: Commit public deployment metadata
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deployments/solforge-mainnet.json deployments/hash-token.json
+          git diff --cached --quiet || git commit -m "Publish SolForge mainnet deployment metadata"
+          git push
