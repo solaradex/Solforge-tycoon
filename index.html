@@ -1420,6 +1420,18 @@
       }
 
       const tier = NFT_TIERS[tierKey];
+      if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda && !forced) {
+        const tierOrder = ['COMMON','RARE','EPIC','LEGENDARY','MYTHIC'];
+        const tierIndex = tierOrder.indexOf(tierKey || 'COMMON');
+        const data = new Uint8Array(9);
+        Buffer.from(ONCHAIN_IX.synthesizeRelic).copy(data, 0);
+        data[8] = Math.max(0, tierIndex);
+        sendOnChainInstruction(data, [
+          { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
+          { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
+          { pubkey: new window.solanaWeb3.PublicKey(GAME.walletPubkey), isSigner: true, isWritable: false }
+        ], 'Saving relic synthesis on Solana').catch(() => {});
+      }
       const base = ARTIFACT_NAMES[Math.floor(Math.random() * ARTIFACT_NAMES.length)];
       const serial = '#' + Math.floor(1000 + Math.random() * 9000);
       const nft = {
@@ -2162,6 +2174,14 @@
       showToast('🎁 Daily Grant: +5 $FORGE & +5,000 $HASH added!');
       renderUIFast();
       saveGame();
+      if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
+        const data = Buffer.from(ONCHAIN_IX.claimDaily);
+        sendOnChainInstruction(data, [
+          { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
+          { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
+          { pubkey: new window.solanaWeb3.PublicKey(GAME.walletPubkey), isSigner: true, isWritable: false }
+        ], 'Claiming daily grant on Solana').catch(() => {});
+      }
     });
 
     document.querySelectorAll('.buy-sol-item-btn').forEach(btn => {
