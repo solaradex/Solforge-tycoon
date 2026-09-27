@@ -236,7 +236,7 @@ fn rig_cost(rig_id: u8, owned: u32, quantity: u32) -> Result<u64> {
 }
 
 fn calculate_pending_cores(player: &Player) -> Result<u32> {
-    Ok((player.total_hash / 1_000_000) as u32)
+    Ok((player.total_hash / 25_000) as u32)
 }
 
 #[derive(Accounts)]
