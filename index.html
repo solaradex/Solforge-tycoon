@@ -768,6 +768,177 @@
       winShown: false
     };
 
+    // On-chain SolForge state bridge. The UI remains responsive locally while
+    // signed mining batches and player initialization settle on Solana.
+    const ONCHAIN = {
+      programId: 'F4rUAeBfjpeV5SLQJv6BCNhSr4QrignBDxFEzTU7bPyp',
+      hashMint: null,
+      configPda: null,
+      playerPda: null,
+      enabled: false,
+      pendingMine: 0,
+      busy: false,
+      lastTx: null
+    };
+
+    const ONCHAIN_IX = {
+      initializePlayer: Uint8Array.from([0x4f,0xf9,0x58,0xb1,0xdc,0x3e,0x38,0x80]),
+      mine: Uint8Array.from([0x3b,0x16,0xb2,0xd5,0x8b,0xc5,0xa0,0xc4]),
+      claimIdle: Uint8Array.from([0x31,0x11,0xf3,0xc3,0xb4,0x62,0xd3,0x9f]),
+      claimDaily: Uint8Array.from([0xcd,0x41,0xbe,0x03,0x61,0xe0,0xf6,0x99]),
+      buyRig: Uint8Array.from([0xd1,0xb8,0x90,0xf6,0x80,0x0f,0xe0,0x85]),
+      synthesizeRelic: Uint8Array.from([0xa5,0xa2,0xb7,0x25,0x55,0x87,0xde,0x7b]),
+      setAutoBot: Uint8Array.from([0x1f,0xd7,0xd7,0xac,0xec,0x98,0x30,0x02]),
+      hardFork: Uint8Array.from([0x15,0x02,0xf4,0x32,0x3e,0x62,0xee,0x14])
+    };
+
+    function getOnChainProgramId() {
+      try {
+        return new window.solanaWeb3.PublicKey(ONCHAIN.programId);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function deriveOnChainPdas(owner) {
+      const programId = getOnChainProgramId();
+      if (!programId || !owner || !window.solanaWeb3) return null;
+      const ownerPk = new window.solanaWeb3.PublicKey(owner);
+      const [configPda] = window.solanaWeb3.PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode('config')],
+        programId
+      );
+      const [playerPda] = window.solanaWeb3.PublicKey.findProgramAddressSync(
+        [new TextEncoder().encode('player'), ownerPk.toBytes()],
+        programId
+      );
+      return { programId, configPda, playerPda };
+    }
+
+    async function loadOnChainConfig() {
+      try {
+        const res = await fetch('deployments/solforge-mainnet.json?ts=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const cfg = await res.json();
+        if (!cfg?.programId || cfg.status === 'not-deployed') return;
+        ONCHAIN.programId = cfg.programId;
+        ONCHAIN.hashMint = cfg.hashMint || null;
+        ONCHAIN.enabled = true;
+        const badge = document.getElementById('chain-status');
+        if (badge) {
+          badge.innerText = ONCHAIN.hashMint ? 'ON-CHAIN' : 'PROGRAM LIVE';
+          badge.className = 'text-[9px] mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-bold';
+        }
+      } catch (_) {}
+    }
+
+    async function sendOnChainInstruction(data, keys, label) {
+      if (!ONCHAIN.enabled || !window.solanaWeb3 || !GAME.walletConnected) return null;
+      const provider = getProvider();
+      if (!provider) return null;
+
+      const tx = new window.solanaWeb3.Transaction().add(
+        new window.solanaWeb3.TransactionInstruction({
+          programId: getOnChainProgramId(),
+          keys,
+          data: Buffer.from(data)
+        })
+      );
+
+      const conn = paymentConnection();
+      const latest = await conn.getLatestBlockhash('confirmed');
+      tx.feePayer = new window.solanaWeb3.PublicKey(GAME.walletPubkey);
+      tx.recentBlockhash = latest.blockhash;
+
+      showTx('Saving On-Chain', label);
+      const result = await provider.signAndSendTransaction(tx);
+      const signature = result.signature || result;
+      await conn.confirmTransaction({
+        signature,
+        blockhash: latest.blockhash,
+        lastValidBlockHeight: latest.lastValidBlockHeight
+      }, 'confirmed');
+      GAME.onChainLastTx = signature;
+      ONCHAIN.lastTx = signature;
+      hideTx();
+      return signature;
+    }
+
+    async function ensurePlayerOnChain() {
+      if (!ONCHAIN.enabled || !GAME.walletConnected || !window.solanaWeb3) return;
+      const pdas = deriveOnChainPdas(GAME.walletPubkey);
+      if (!pdas) return;
+      ONCHAIN.configPda = pdas.configPda;
+      ONCHAIN.playerPda = pdas.playerPda;
+
+      try {
+        const info = await paymentConnection().getAccountInfo(pdas.playerPda, 'confirmed');
+        if (info) return;
+
+        const data = Buffer.from(ONCHAIN_IX.initializePlayer);
+        await sendOnChainInstruction(data, [
+          { pubkey: pdas.configPda, isSigner: false, isWritable: true },
+          { pubkey: pdas.playerPda, isSigner: false, isWritable: true },
+          { pubkey: new window.solanaWeb3.PublicKey(GAME.walletPubkey), isSigner: true, isWritable: true },
+          { pubkey: window.solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false }
+        ], 'Creating your SolForge player account');
+        showToast('⛓️ Player state initialized on Solana');
+      } catch (_) {
+        hideTx();
+      }
+    }
+
+    async function flushOnChainMine() {
+      if (!ONCHAIN.enabled || !GAME.walletConnected || ONCHAIN.busy || ONCHAIN.pendingMine < 1) return;
+      if (!ONCHAIN.playerPda || !ONCHAIN.configPda) return;
+
+      ONCHAIN.busy = true;
+      const units = Math.min(500, ONCHAIN.pendingMine);
+      const data = Buffer.alloc(12);
+      Buffer.from(ONCHAIN_IX.mine).copy(data, 0);
+      data.writeUInt32LE(units, 8);
+
+      try {
+        await sendOnChainInstruction(data, [
+          { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
+          { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
+          { pubkey: new window.solanaWeb3.PublicKey(GAME.walletPubkey), isSigner: true, isWritable: false }
+        ], `Settling ${units} mining actions on Solana`);
+        ONCHAIN.pendingMine -= units;
+        showToast(`⛓️ ${units} mining actions saved on-chain`);
+      } catch (_) {
+        hideTx();
+      } finally {
+        ONCHAIN.busy = false;
+      }
+    }
+
+    function queueOnChainMine(units = 1) {
+      if (!ONCHAIN.enabled || !GAME.walletConnected) return;
+      ONCHAIN.pendingMine = Math.min(5000, ONCHAIN.pendingMine + units);
+      if (ONCHAIN.pendingMine >= 500) flushOnChainMine();
+    }
+
+    async function refreshOnChainPlayer() {
+      if (!ONCHAIN.enabled || !ONCHAIN.playerPda) return null;
+      try {
+        const info = await paymentConnection().getAccountInfo(ONCHAIN.playerPda, 'confirmed');
+        if (!info?.data || info.data.length < 150) return null;
+        const d = Buffer.from(info.data);
+        const hash = Number(d.readBigUInt64LE(40));
+        const totalHash = Number(d.readBigUInt64LE(48));
+        const forge = Number(d.readBigUInt64LE(56));
+        const cores = d.readUInt16LE(64);
+        const autoBot = d[66] === 1;
+        const overclockBps = d.readUInt16LE(67);
+        return { hash, totalHash, forge, cores, autoBot, overclockBps };
+      } catch (_) {
+        return null;
+      }
+    }
+
+    };
+
     // Hardware Rigs
     const RIGS = [
       { id: 'pi_node', name: 'Raspberry Pi Node', baseCost: 15, costMult: 1.15, baseHash: 1, count: 0, icon: '📟' },
