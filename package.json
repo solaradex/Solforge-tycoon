@@ -1,0 +1,23 @@
+{
+  "name": "solforge-tycoon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SolForge Tycoon — Solana Web3 idle miner",
+  "scripts": {
+    "prepare:mobile": "node scripts/prepare-mobile.mjs",
+    "cap:sync": "npm run prepare:mobile && npx cap sync",
+    "cap:add:android": "npm run prepare:mobile && npx cap add android && npx cap sync android",
+    "cap:add:ios": "npm run prepare:mobile && npx cap add ios && npx cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
