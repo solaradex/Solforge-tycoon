@@ -1601,6 +1601,14 @@
       renderRigsList();
       renderUIFast();
       saveGame();
+      if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
+        const data = Buffer.from(ONCHAIN_IX.hardFork);
+        sendOnChainInstruction(data, [
+          { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
+          { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
+          { pubkey: new window.solanaWeb3.PublicKey(GAME.walletPubkey), isSigner: true, isWritable: false }
+        ], 'Saving hard fork on Solana').catch(() => {});
+      }
     }
 
     /* AIRDROP RANDOM EVENT */
@@ -2236,6 +2244,16 @@
       showToast('🤖 Auto-Bot Worker Activated!');
       renderUIFast();
       saveGame();
+      if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
+        const data = new Uint8Array(9);
+        Buffer.from(ONCHAIN_IX.setAutoBot).copy(data, 0);
+        data[8] = 1;
+        sendOnChainInstruction(data, [
+          { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
+          { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
+          { pubkey: new window.solanaWeb3.PublicKey(GAME.walletPubkey), isSigner: true, isWritable: false }
+        ], 'Enabling Auto-Bot on Solana').catch(() => {});
+      }
     });
 
     document.getElementById('buy-2x-overclock-btn').addEventListener('click', () => {
