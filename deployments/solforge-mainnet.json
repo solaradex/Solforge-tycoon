@@ -1,0 +1,9 @@
+{
+  "network": "mainnet-beta",
+  "programId": "F4rUAeBfjpeV5SLQJv6BCNhSr4QrignBDxFEzTU7bPyp",
+  "hashMint": null,
+  "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  "hashDecimals": 0,
+  "maxHashSupply": 1000000000,
+  "status": "not-deployed"
+}
