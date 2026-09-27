@@ -132,9 +132,9 @@ pub mod solforge_game {
         require!(!ctx.accounts.config.paused, SolforgeError::Paused);
         require!(rig_id < 7 && quantity > 0 && quantity <= 100, SolforgeError::InvalidRig);
         let cost = rig_cost(rig_id, ctx.accounts.player.rigs[rig_id as usize], quantity)?;
-        require!(ctx.accounts.player.forge >= cost, SolforgeError::InsufficientForge);
+        require!(ctx.accounts.player.hash >= cost, SolforgeError::InsufficientHash);
 
-        ctx.accounts.player.forge = ctx.accounts.player.forge.checked_sub(cost).ok_or(SolforgeError::Overflow)?;
+        ctx.accounts.player.hash = ctx.accounts.player.hash.checked_sub(cost).ok_or(SolforgeError::Overflow)?;
         ctx.accounts.player.rigs[rig_id as usize] = ctx.accounts.player.rigs[rig_id as usize]
             .checked_add(quantity)
             .ok_or(SolforgeError::Overflow)?;
