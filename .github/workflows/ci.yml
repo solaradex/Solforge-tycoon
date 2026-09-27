@@ -1,0 +1,57 @@
+name: SolForge CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check JavaScript deployment scripts
+        run: |
+          node --check scripts/create-hash-token.mjs
+          node --check scripts/set-hash-mint-authority.mjs
+          node --check scripts/initialize-game.mjs
+          node --check scripts/prepare-mobile.mjs
+
+      - name: Check inline game JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script(?![^>]*src=)[^>]*>([\s\S]*?)</script>", html, re.I)
+          if not scripts:
+              raise SystemExit("No inline scripts found")
+          Path("/tmp/solforge-inline.js").write_text("\n".join(scripts), encoding="utf-8")
+          print(f"Validated {len(scripts)} inline script block(s)")
+          PY
+          node --check /tmp/solforge-inline.js
+
+      - name: Validate workflow files exist
+        run: |
+          test -f .github/workflows/deploy-pages.yml
+          test -f .github/workflows/build-mobile.yml
+          test -f .github/workflows/deploy-solforge-mainnet.yml
+
+      - name: Check on-chain source
+        run: |
+          test -f Anchor.toml
+          test -f Cargo.toml
+          test -f programs/solforge-game/Cargo.toml
+          test -f programs/solforge-game/src/lib.rs
+          grep -q 'MAX_MINE_UNITS' programs/solforge-game/src/lib.rs
+          grep -q 'claim_hash' programs/solforge-game/src/lib.rs
