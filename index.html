@@ -1,0 +1,2042 @@
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>SolForge Tycoon — Solana Web3 Idle Miner</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Solana Web3.js -->
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyber: {
+              950: '#030712',
+              900: '#060b1e',
+              850: '#0b132b',
+              800: '#111d40',
+              700: '#1c2d5e',
+              600: '#2a4185',
+              neon: '#00ffa3',
+              purple: '#9945FF',
+              solblue: '#14F195',
+              gold: '#fbbf24',
+              pink: '#f43f5e',
+              cyan: '#06b6d4'
+            }
+          },
+          animation: {
+            'float': 'float 3.5s ease-in-out infinite',
+            'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'spin-slow': 'spin 12s linear infinite',
+            'bounce-soft': 'bounceSoft 2s ease-in-out infinite'
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-8px)' }
+            },
+            bounceSoft: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-12px)' }
+            },
+            pulseGlow: {
+              '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 12px rgba(20,241,149,0.5))' },
+              '50%': { opacity: '.75', filter: 'drop-shadow(0 0 24px rgba(153,69,255,0.8))' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Chakra Petch', -apple-system, sans-serif;
+    }
+    
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #060b1e; }
+    ::-webkit-scrollbar-thumb { background: #1c2d5e; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #14F195; }
+
+    .solana-gradient-text {
+      background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .solana-border-glow {
+      box-shadow: 0 0 15px rgba(20, 241, 149, 0.25), inset 0 0 15px rgba(153, 69, 255, 0.15);
+    }
+
+    .glass-card {
+      background: rgba(11, 19, 43, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .float-text {
+      position: fixed;
+      pointer-events: none;
+      font-weight: 800;
+      animation: floatUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      z-index: 100;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(0.9); }
+      30% { transform: translate(-50%, -25px) scale(1.2); }
+      100% { opacity: 0; transform: translate(-50%, -65px) scale(0.9); }
+    }
+
+    .shimmer-btn {
+      position: relative;
+      overflow: hidden;
+    }
+    .shimmer-btn::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -60%;
+      width: 40%;
+      height: 200%;
+      background: linear-gradient(60deg, transparent, rgba(255,255,255,0.28), transparent);
+      transform: rotate(30deg);
+      animation: shimmer 2.8s infinite;
+    }
+    @keyframes shimmer {
+      0% { left: -60%; }
+      30%, 100% { left: 140%; }
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: flex; }
+    .range-track {
+      height: 6px;
+      border-radius: 999px;
+      background: #030712;
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body class="bg-cyber-950 text-slate-100 h-[100dvh] w-screen overflow-hidden flex flex-col relative select-none">
+
+  <!-- TOP APP HEADER -->
+  <header class="h-[60px] px-3.5 bg-cyber-900/95 border-b border-cyber-700/60 flex items-center justify-between z-30 shrink-0 shadow-lg">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyber-purple via-cyber-cyan to-cyber-solblue p-0.5 shadow-md">
+        <div class="w-full h-full bg-cyber-950 rounded-[10px] flex items-center justify-center font-black text-cyber-solblue text-base">
+          ◎
+        </div>
+      </div>
+      <div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-extrabold tracking-wider uppercase solana-gradient-text">SOLFORGE</span>
+          <span id="current-cluster-tag" class="text-[9px] mono px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-500/40 font-bold">DEVNET</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-[10px] mono text-slate-400">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="tps-ticker">TPS 3,420</span>
+          <span class="text-slate-600">•</span>
+          <span class="text-amber-300 font-semibold">SOL ONLY</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="wallet-connect-btn" class="glass-card px-2.5 py-1.5 rounded-xl border-cyber-solblue/40 text-cyber-solblue flex items-center gap-1.5 active:scale-95 transition">
+        <i data-lucide="wallet" class="w-3.5 h-3.5"></i>
+        <span id="wallet-btn-label" class="mono text-xs font-bold">Connect SOL</span>
+      </button>
+      <button id="audio-toggle-btn" class="w-8 h-8 rounded-xl glass-card flex items-center justify-center text-slate-300 border-white/10 active:scale-95" aria-label="Toggle Sound">
+        <i id="audio-icon" data-lucide="volume-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- RESOURCE STATUS BAR -->
+  <div class="h-10 bg-cyber-950 border-b border-cyber-800/90 px-3.5 flex items-center justify-between text-xs mono shrink-0 gap-3 overflow-x-auto">
+    <div class="flex items-center gap-1.5 shrink-0">
+      <span class="text-cyber-solblue font-black text-sm">◈</span>
+      <span id="stat-hash" class="font-black text-sm text-cyber-solblue tracking-tight">0.0</span>
+      <span class="text-[9px] text-slate-400">$HASH</span>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <span class="text-amber-400 font-black text-sm">⬡</span>
+      <span id="stat-forge" class="font-extrabold text-sm text-amber-300">10.00</span>
+      <span class="text-[9px] text-slate-400">$FORGE</span>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <span class="text-purple-400 font-bold text-xs">◎</span>
+      <span id="stat-sol-paid" class="font-bold text-xs text-purple-300">0.00 SOL</span>
+      <span class="text-[9px] bg-purple-950 text-purple-300 px-1 py-0.5 rounded border border-purple-500/30">PAID</span>
+    </div>
+  </div>
+
+  <!-- STATS SECONDARY BAR -->
+  <div class="h-7 bg-cyber-900/80 px-3.5 flex items-center justify-between text-[11px] mono text-slate-300 border-b border-cyber-800/60 shrink-0">
+    <div class="flex items-center gap-2">
+      <span>Rate: <b id="stat-rate" class="text-cyan-300">0 H/s</b></span>
+      <span class="text-slate-600">|</span>
+      <span>Tap: <b id="stat-click" class="text-purple-300">+1</b></span>
+      <span class="text-slate-600">|</span>
+      <span>Cores: <b id="stat-cores" class="text-amber-400">+0%</b></span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span id="overdrive-indicator" class="hidden px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 font-bold border border-pink-500/40 text-[9px] animate-pulse">⚡ 3X TURBO</span>
+      <span id="autobot-indicator" class="hidden px-1.5 py-0.5 rounded bg-cyber-solblue/20 text-cyber-solblue font-bold border border-cyber-solblue/40 text-[9px]">🤖 BOT ON</span>
+    </div>
+  </div>
+
+  <!-- MAIN VIEW CONTAINER -->
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+    
+    <!-- 1. MINE TAB -->
+    <section id="tab-mine" class="tab-content active h-full flex-col relative">
+      <div class="relative flex-1 w-full bg-gradient-to-b from-cyber-950 via-cyber-900 to-cyber-950 flex items-center justify-center overflow-hidden">
+        <canvas id="miner-canvas" class="absolute inset-0 w-full h-full cursor-pointer touch-none"></canvas>
+        
+        <!-- Progress to Validator Election Goal -->
+        <div class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10 gap-2">
+          <div class="glass-card px-3 py-2 rounded-xl border-white/10 flex flex-col gap-1 max-w-[200px] w-full shadow-lg">
+            <div class="flex justify-between text-[10px] mono">
+              <span class="text-slate-400 font-semibold">VALIDATOR GOAL</span>
+              <span id="goal-pct" class="text-cyber-solblue font-bold">0.0%</span>
+            </div>
+            <div class="range-track">
+              <div id="goal-progress-bar" class="h-full bg-gradient-to-r from-cyber-purple via-cyber-solblue to-cyber-neon transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-[9px] mono text-slate-500">
+              <span id="goal-current-text">0</span>
+              <span>1,000,000 $HASH</span>
+            </div>
+          </div>
+
+          <div class="glass-card px-3 py-2 rounded-xl border-white/10 text-right pointer-events-auto shadow-lg">
+            <div class="text-[9px] mono text-slate-400 uppercase">Combo Multiplier</div>
+            <div id="combo-multiplier-text" class="text-xs mono font-black text-amber-300">1.0x COMBO</div>
+            <div class="text-[9px] mono text-slate-500">Tap fast to build</div>
+          </div>
+        </div>
+
+        <!-- Floating Golden SOL Airdrop Loot Box -->
+        <div id="airdrop-balloon" class="hidden absolute z-30 cursor-pointer animate-bounce-soft flex flex-col items-center group touch-manipulation">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-pink-500 to-purple-600 p-0.5 shadow-2xl group-hover:scale-110 active:scale-95 transition">
+            <div class="w-full h-full bg-cyber-950 rounded-[14px] flex flex-col items-center justify-center">
+              <span class="text-xl">🎁</span>
+              <span class="text-[8px] mono font-extrabold text-amber-300 tracking-wider">AIRDROP</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tap Prompt -->
+        <div id="click-tutorial" class="absolute bottom-4 pointer-events-none text-center px-4 py-1.5 rounded-full bg-cyber-900/80 border border-cyber-solblue/30 text-slate-300 text-xs mono backdrop-blur-md animate-pulse">
+          ✨ Tap the Genesis Qubit • Forge <span class="text-cyber-solblue font-bold">$HASH</span>
+        </div>
+      </div>
+
+      <!-- Quick Action Deck -->
+      <div class="h-[84px] bg-cyber-900/90 border-t border-cyber-800 px-3 py-2 flex items-center justify-between gap-2.5 shrink-0 z-20">
+        <button id="activate-overdrive-btn" class="flex-1 h-full rounded-xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-700 p-0.5 active:scale-95 transition shadow-lg">
+          <div class="w-full h-full bg-cyber-950/70 rounded-[10px] flex flex-col items-center justify-center px-1">
+            <div class="flex items-center gap-1 text-pink-300 text-xs font-black uppercase">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i> Overdrive 3×
+            </div>
+            <span id="overdrive-btn-sub" class="text-[10px] mono text-slate-300">Free 20s Boost</span>
+          </div>
+        </button>
+
+        <button id="gasless-faucet-btn" class="flex-1 h-full rounded-xl bg-gradient-to-r from-cyber-solblue via-emerald-500 to-teal-600 p-0.5 active:scale-95 transition shadow-lg">
+          <div class="w-full h-full bg-cyber-950/70 rounded-[10px] flex flex-col items-center justify-center px-1">
+            <div class="flex items-center gap-1 text-cyber-solblue text-xs font-black uppercase">
+              <i data-lucide="droplet" class="w-3.5 h-3.5"></i> Gas Faucet
+            </div>
+            <span id="faucet-btn-sub" class="text-[10px] mono text-emerald-200">+350 $HASH</span>
+          </div>
+        </button>
+
+        <div class="w-[74px] h-full rounded-xl glass-card flex flex-col items-center justify-center text-center p-1 border-white/5">
+          <span class="text-[9px] mono text-slate-400">CRIT RATE</span>
+          <span id="crit-chance-display" class="text-xs mono font-black text-amber-300">5.0%</span>
+          <span class="text-[8px] mono text-slate-500">3x Dmg</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. RIGS TAB -->
+    <section id="tab-rigs" class="tab-content h-full flex-col p-3.5 overflow-y-auto space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-black uppercase text-cyber-solblue tracking-wider">Mining Hardware</h2>
+          <p class="text-[11px] text-slate-400">Idle node yield • 80% offline production</p>
+        </div>
+        <div class="flex bg-cyber-950 border border-cyber-700/80 rounded-lg p-0.5 mono text-[10px] font-bold">
+          <button class="buy-mult-select px-2.5 py-1 rounded bg-cyber-solblue text-cyber-950 font-black" data-mult="1">1×</button>
+          <button class="buy-mult-select px-2.5 py-1 rounded text-slate-400" data-mult="10">10×</button>
+          <button class="buy-mult-select px-2.5 py-1 rounded text-slate-400" data-mult="max">MAX</button>
+        </div>
+      </div>
+
+      <div id="rigs-container" class="space-y-2 pb-6"></div>
+    </section>
+
+    <!-- 3. NFTS TAB -->
+    <section id="tab-nfts" class="tab-content h-full flex-col p-3.5 overflow-y-auto space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-black uppercase text-purple-400 tracking-wider">NFT Pickaxes & Relics</h2>
+          <p class="text-[11px] text-slate-400">Equip 3 relics • Stacking speed & tap boost</p>
+        </div>
+        <span class="px-2 py-1 rounded-lg bg-purple-950 border border-purple-500/40 text-[10px] mono text-purple-300 font-bold">
+          Equipped <span id="nft-equipped-count">0</span>/3
+        </span>
+      </div>
+
+      <!-- Minting Forge Card -->
+      <div class="glass-card rounded-2xl p-3.5 border-purple-500/30 flex items-center justify-between gap-3 shadow-lg">
+        <div>
+          <div class="text-xs font-black text-white flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i> SYNTHESIZE RELIC
+          </div>
+          <p class="text-[10px] text-slate-400">Common → Mythic • Costs $FORGE</p>
+        </div>
+        <button id="mint-nft-free-btn" class="shimmer-btn px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black mono active:scale-95 shadow-lg flex items-center gap-1.5">
+          <span>🔨 MINT</span>
+          <span class="text-amber-300">2 $FORGE</span>
+        </button>
+      </div>
+
+      <div>
+        <div class="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">Active Equipped Relics</div>
+        <div id="equipped-deck" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <div class="pt-2">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Inventory (<span id="inv-count-num">0</span>)</div>
+          <span class="text-[9px] mono text-slate-500">Auto-saved to device</span>
+        </div>
+        <div id="inventory-grid" class="grid grid-cols-2 gap-2 pb-8"></div>
+      </div>
+    </section>
+
+    <!-- 4. DEFI & HARD FORK TAB -->
+    <section id="tab-defi" class="tab-content h-full flex-col p-3.5 overflow-y-auto space-y-3">
+      <div>
+        <h2 class="text-sm font-black uppercase text-amber-400 tracking-wider">DeFi Staking & Hard Fork</h2>
+        <p class="text-[11px] text-slate-400">Stake $HASH for $FORGE yield • Hard Fork for permanent Genesis Cores</p>
+      </div>
+
+      <!-- Liquidity Staking Card -->
+      <div class="glass-card rounded-2xl p-4 border-amber-500/30 space-y-3 shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">🏦</div>
+            <div>
+              <div class="text-xs font-black text-amber-300 uppercase">SOL-HASH Liquidity Pool</div>
+              <div class="text-[10px] text-slate-400">28.4% APY • Generates $FORGE</div>
+            </div>
+          </div>
+          <span class="mono text-xs px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-bold">ACTIVE</span>
+        </div>
+
+        <div class="bg-black/50 rounded-xl p-3 border border-white/5 space-y-1.5 mono text-xs">
+          <div class="flex justify-between text-slate-400">
+            <span>Staked $HASH:</span>
+            <span id="staked-hash-amount" class="text-cyber-solblue font-bold">0</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>Accrued $FORGE:</span>
+            <span id="accrued-forge-amount" class="text-amber-400 font-bold">0.00</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <button id="stake-half-btn" class="py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs active:scale-95">Stake 50%</button>
+          <button id="harvest-forge-btn" class="py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-cyber-950 font-black text-xs active:scale-95">Harvest</button>
+          <button id="unstake-all-btn" class="py-2.5 rounded-xl bg-cyber-950 border border-slate-700 text-slate-300 font-bold text-xs active:scale-95">Unstake</button>
+        </div>
+      </div>
+
+      <!-- Genesis Hard Fork Prestige Card -->
+      <div class="glass-card rounded-2xl p-4 border-cyber-solblue/30 space-y-3 shadow-lg">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-cyber-solblue/20 border border-cyber-solblue/40 flex items-center justify-center">🔱</div>
+          <div>
+            <div class="text-xs font-black text-cyber-solblue uppercase">Genesis Hard Fork (Prestige)</div>
+            <div class="text-[10px] text-slate-400">+25% global boost per Genesis Core</div>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Reset current <b class="text-white">$HASH</b>, rigs, and active stake in exchange for permanent <b class="text-cyber-solblue">Genesis Cores</b>. All future clicks and idle speeds scale multiplicatively.
+        </p>
+
+        <div class="bg-black/50 rounded-xl p-3 border border-white/5 space-y-1 mono text-xs">
+          <div class="flex justify-between text-slate-400">
+            <span>Current Cores:</span>
+            <span id="current-cores-count" class="text-purple-300 font-bold">0</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>On Fork Gain:</span>
+            <span id="pending-cores-count" class="text-cyber-neon font-black">+0</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>Permanent Multiplier:</span>
+            <span id="cores-mult-boost" class="text-amber-400 font-bold">+0%</span>
+          </div>
+        </div>
+
+        <button id="execute-hardfork-btn" disabled class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 disabled:opacity-40 disabled:pointer-events-none text-white font-black text-xs uppercase tracking-wider active:scale-95 shadow-md">
+          Execute Hard Fork — Needs 25,000 $HASH
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. WHALE STORE (SOL ONLY PAYMENTS) TAB -->
+    <section id="tab-shop" class="tab-content h-full flex-col p-3.5 overflow-y-auto space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-black uppercase text-pink-400 tracking-wider">Whale Store</h2>
+          <p class="text-[11px] text-slate-400">Monetization • Direct to creator SOL wallet • <b class="text-amber-300">SOL Only</b></p>
+        </div>
+        <span class="text-[10px] mono px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/40 font-bold">
+          SOL ONLY
+        </span>
+      </div>
+
+      <!-- Merchant Receiver Box -->
+      <div class="glass-card rounded-2xl p-3.5 border-amber-500/40 bg-amber-950/15 space-y-2 shadow-lg">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Connected SOL Receiving Account
+          </span>
+          <span id="merchant-cluster-pill" class="text-[9px] mono px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/40 font-bold">DEVNET</span>
+        </div>
+
+        <div class="flex gap-1.5">
+          <input id="merchant-wallet-input" type="text" class="flex-1 bg-cyber-950 border border-amber-500/40 rounded-lg px-2.5 py-2 text-[11px] mono text-amber-200 outline-none focus:border-amber-400" value="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS" placeholder="Enter SOL Wallet Address" />
+          <button id="update-merchant-btn" class="bg-amber-400 hover:bg-amber-300 text-black px-3 rounded-lg text-xs font-black mono active:scale-95">SET</button>
+        </div>
+
+        <div class="flex items-center justify-between text-[10px] mono text-slate-400 pt-1 border-t border-white/5">
+          <span>Supported: <b class="text-emerald-400">SOL Direct Transfer</b></span>
+          <span>Received: <b id="merchant-revenue-text" class="text-emerald-400">0.0000 SOL</b></span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button id="copy-merchant-address" class="py-1.5 rounded-lg bg-cyber-900 border border-slate-700 text-[10px] font-bold mono text-slate-300 active:scale-95">📋 Copy SOL Address</button>
+          <button id="view-on-solscan-btn" class="py-1.5 rounded-lg bg-cyber-900 border border-slate-700 text-[10px] font-bold mono text-slate-300 active:scale-95">🔍 View on Solscan</button>
+        </div>
+      </div>
+
+      <!-- Free Daily Grant for F2P players -->
+      <div class="glass-card rounded-2xl p-3 border-emerald-500/40 flex items-center justify-between shadow-md">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-black text-emerald-400">🎁 DAILY SOLAR GRANT</span>
+            <span class="text-[9px] mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">FREE F2P</span>
+          </div>
+          <div class="text-[10px] text-slate-400">+5.0 $FORGE + 5,000 $HASH • Claim once daily</div>
+        </div>
+        <button id="claim-daily-grant-btn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-cyber-950 font-black text-xs rounded-xl active:scale-95 shadow-md">CLAIM</button>
+      </div>
+
+      <!-- Upgrade Store Offerings -->
+      <div class="space-y-2.5 pb-8">
+        <div class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Premium Monetization Items (SOL Only)</div>
+
+        <!-- 1. Micro Vault -->
+        <div class="glass-card rounded-2xl p-3.5 flex items-center justify-between border-purple-500/30">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-purple-950 border border-purple-500/50 flex items-center justify-center text-xl">💎</div>
+            <div>
+              <div class="text-xs font-extrabold text-white">Starter Micro-Vault</div>
+              <div class="text-[10px] text-slate-400">+50 $FORGE + 25,000 $HASH</div>
+              <div class="text-[11px] mono text-cyan-300 font-bold">0.05 SOL</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 items-end">
+            <button class="buy-sol-item-btn shimmer-btn px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-xs mono active:scale-95" data-sol="0.05" data-forge="50" data-hash="25000" data-label="Starter Micro-Vault">◎ 0.05 SOL</button>
+            <button class="demo-pack-btn text-[9px] mono text-purple-300 underline" data-forge="50" data-hash="25000">[Demo Free]</button>
+          </div>
+        </div>
+
+        <!-- 2. Auto-Bot Tap Contract -->
+        <div class="glass-card rounded-2xl p-3.5 flex items-center justify-between border-cyber-solblue/30">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-cyber-solblue/15 border border-cyber-solblue/50 flex items-center justify-center text-xl">🤖</div>
+            <div>
+              <div class="text-xs font-extrabold text-white">Auto-Bot Tap Worker</div>
+              <div class="text-[10px] text-slate-400">8 automatic taps/sec • Permanent</div>
+              <div class="text-[11px] mono text-cyber-solblue font-bold">0.10 SOL <span class="text-slate-500 font-normal">or 25 $FORGE</span></div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 items-end">
+            <button id="buy-autobot-sol-btn" class="shimmer-btn px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyber-solblue to-cyan-500 text-cyber-950 font-black text-xs mono active:scale-95">◎ 0.10 SOL</button>
+            <button id="buy-autobot-forge-btn" class="px-3 py-1 rounded-lg bg-cyber-900 border border-slate-700 text-amber-300 text-[10px] mono font-bold active:scale-95">25 $FORGE</button>
+          </div>
+        </div>
+
+        <!-- 3. Quantum Overclock 2x -->
+        <div class="glass-card rounded-2xl p-3.5 flex items-center justify-between border-pink-500/30">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-pink-950 border border-pink-500/50 flex items-center justify-center text-xl">⚡</div>
+            <div>
+              <div class="text-xs font-extrabold text-white">2× Quantum Overclock</div>
+              <div class="text-[10px] text-slate-400">Permanent 2x multiplier to everything</div>
+              <div class="text-[11px] mono text-pink-400 font-bold">0.15 SOL</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 items-end">
+            <button id="buy-2x-overclock-btn" class="shimmer-btn px-3.5 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 text-white font-black text-xs mono active:scale-95">◎ 0.15 SOL</button>
+            <button class="demo-pack-btn text-[9px] mono text-pink-300 underline" data-overclock="true">[Demo Free]</button>
+          </div>
+        </div>
+
+        <!-- 4. Giga Whale Pod -->
+        <div class="glass-card rounded-2xl p-3.5 flex items-center justify-between border-amber-500/40 bg-amber-950/20">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-amber-950 border border-amber-400/50 flex items-center justify-center text-xl">👑</div>
+            <div>
+              <div class="text-xs font-extrabold text-amber-300">Giga-Whale Validator Pod</div>
+              <div class="text-[10px] text-slate-300">+350 $FORGE + 150k $HASH + Mythic NFT</div>
+              <div class="text-[11px] mono text-amber-400 font-bold">0.25 SOL</div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 items-end">
+            <button class="buy-sol-item-btn shimmer-btn px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-yellow-500 text-cyber-950 font-black text-xs mono active:scale-95" data-sol="0.25" data-forge="350" data-hash="150000" data-mythic="true" data-label="Giga-Whale Pod">◎ 0.25 SOL</button>
+            <button class="demo-pack-btn text-[9px] mono text-amber-300 underline" data-forge="350" data-mythic="true">[Demo Free]</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM MOBILE NAVIGATION BAR -->
+  <nav class="h-16 bg-cyber-950/95 border-t border-cyber-800 grid grid-cols-5 z-40 shrink-0 shadow-2xl">
+    <button class="nav-tab-btn flex flex-col items-center justify-center text-cyber-solblue" data-tab="tab-mine">
+      <i data-lucide="pickaxe" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">MINE</span>
+    </button>
+    <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400" data-tab="tab-rigs">
+      <i data-lucide="server" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">RIGS</span>
+    </button>
+    <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400" data-tab="tab-nfts">
+      <i data-lucide="layers" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">NFTS</span>
+    </button>
+    <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400" data-tab="tab-defi">
+      <i data-lucide="landmark" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">DEFI</span>
+    </button>
+    <button class="nav-tab-btn flex flex-col items-center justify-center text-slate-400" data-tab="tab-shop">
+      <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+      <span class="text-[10px] font-bold mt-0.5">STORE</span>
+    </button>
+  </nav>
+
+  <!-- WELCOME & LAUNCH MODAL -->
+  <div id="start-modal" class="fixed inset-0 z-50 bg-cyber-950/95 backdrop-blur-xl flex flex-col items-center p-4 overflow-y-auto">
+    <div class="w-full max-w-[420px] my-auto flex flex-col items-center text-center">
+      <div class="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-cyber-purple via-cyber-cyan to-cyber-solblue p-0.5 shadow-2xl animate-float">
+        <div class="w-full h-full bg-cyber-950 rounded-[14px] flex items-center justify-center text-3xl font-black text-cyber-solblue">
+          ◈
+        </div>
+      </div>
+
+      <h1 class="mt-4 text-3xl font-black tracking-tight solana-gradient-text uppercase">SolForge Tycoon</h1>
+      <p class="text-[11px] mono tracking-[0.2em] text-cyan-300 font-bold mt-1">SOLANA WEB3 IDLE MINING EMPIRE</p>
+
+      <div class="flex flex-wrap gap-1.5 justify-center mt-3">
+        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ FREE TO PLAY</span>
+        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">◎ SOL ONLY PAYMENTS</span>
+        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⚡ INSTANT ON PHANTOM</span>
+      </div>
+
+      <div class="glass-card rounded-2xl p-4 mt-5 w-full text-left border-cyber-700/60 shadow-xl space-y-2">
+        <div class="flex items-center gap-2 text-cyber-solblue text-xs font-bold uppercase tracking-wider">
+          <i data-lucide="cpu" class="w-4 h-4"></i> How To Play — Free Start
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Tap the <b class="text-cyber-solblue">Genesis Qubit</b> to mine <b class="text-cyber-solblue">$HASH</b>. Buy high-yield automated rigs, synthesize NFT Pickaxes, stake for <b class="text-amber-300">$FORGE</b> tokens, or unlock permanent <b class="text-pink-300">SOL Whale Boosts</b>. No wallet required to start playing!
+        </p>
+
+        <div class="grid grid-cols-3 gap-2 pt-2">
+          <div class="bg-black/40 rounded-xl p-2 text-center border border-white/5">
+            <div class="text-[11px] font-black text-white">Tap 2 Earn</div>
+            <div class="text-[9px] text-slate-400">Idle + Active</div>
+          </div>
+          <div class="bg-black/40 rounded-xl p-2 text-center border border-white/5">
+            <div class="text-[11px] font-black text-white">Rigs & NFTs</div>
+            <div class="text-[9px] text-slate-400">Passive Yield</div>
+          </div>
+          <div class="bg-black/40 rounded-xl p-2 text-center border border-white/5">
+            <div class="text-[11px] font-black text-white">Hard Fork</div>
+            <div class="text-[9px] text-slate-400">+25% Prestige</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verified Receiver Box -->
+      <div class="glass-card rounded-2xl p-4 mt-3 w-full text-left border-amber-500/30 bg-gradient-to-br from-amber-950/25 to-orange-950/10">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+            <i data-lucide="shield-check" class="w-4 h-4"></i> Verified SOL Receiver
+          </div>
+          <span class="text-[9px] mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-400/40 font-bold">SOL ONLY</span>
+        </div>
+        <p class="text-[11px] text-slate-300 mt-1">In-game shop transactions transfer SOL directly to:</p>
+        
+        <div class="mt-2 bg-cyber-950 border border-amber-500/40 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="text-[9px] mono text-amber-300/70 uppercase tracking-widest">Receiving SOL Account</div>
+            <div class="mono text-[11px] font-bold text-amber-200 break-all leading-tight" id="display-merchant-start">Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS</div>
+          </div>
+          <button id="copy-start-address" class="shrink-0 w-8 h-8 rounded-lg bg-amber-400 text-black flex items-center justify-center active:scale-95">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="flex gap-2 mt-2">
+          <button data-cluster="devnet" class="network-toggle-btn flex-1 py-1.5 rounded-lg bg-cyber-solblue text-cyber-950 text-[10px] font-black mono">DEVNET</button>
+          <button data-cluster="mainnet-beta" class="network-toggle-btn flex-1 py-1.5 rounded-lg bg-cyber-900 border border-slate-700 text-slate-300 text-[10px] font-bold mono">MAINNET-BETA</button>
+        </div>
+      </div>
+
+      <div class="w-full space-y-2 mt-5">
+        <button id="launch-free-btn" class="shimmer-btn w-full py-4 rounded-xl bg-gradient-to-r from-cyber-purple via-cyber-solblue to-cyber-neon text-cyber-950 font-black text-sm tracking-widest uppercase shadow-lg shadow-cyber-solblue/25 active:scale-[0.98]">
+          🚀 PLAY FREE — NO WALLET NEEDED
+        </button>
+        <button id="resume-save-btn" class="hidden w-full py-3 rounded-xl bg-cyber-900 border border-cyber-600 text-slate-200 font-bold text-xs tracking-wider uppercase">
+          ↻ Resume Saved Progress
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VICTORY MODAL -->
+  <div id="win-modal" class="hidden fixed inset-0 z-50 bg-cyber-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl p-6 max-w-sm w-full border-amber-500/50 shadow-2xl text-center relative overflow-hidden">
+      <div class="text-5xl animate-bounce">🏆</div>
+      <h2 class="text-2xl font-black text-amber-300 mt-2">VALIDATOR ELECTED!</h2>
+      <p class="text-xs text-slate-300 mt-1">You forged over 1,000,000 $HASH and earned an official slot in the Solana validator set!</p>
+
+      <div class="grid grid-cols-3 gap-2 my-4">
+        <div class="bg-black/50 rounded-xl p-2 border border-white/5">
+          <div id="win-hash-val" class="mono text-xs font-bold text-cyber-solblue">1.0M</div>
+          <div class="text-[9px] text-slate-500">HASH</div>
+        </div>
+        <div class="bg-black/50 rounded-xl p-2 border border-white/5">
+          <div id="win-forge-val" class="mono text-xs font-bold text-amber-400">0</div>
+          <div class="text-[9px] text-slate-500">$FORGE</div>
+        </div>
+        <div class="bg-black/50 rounded-xl p-2 border border-white/5">
+          <div id="win-sol-val" class="mono text-xs font-bold text-purple-300">0 SOL</div>
+          <div class="text-[9px] text-slate-500">SOL PAID</div>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <button id="win-endless-btn" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyber-solblue to-cyber-neon text-cyber-950 font-black text-xs uppercase active:scale-95">Continue Endless Mode</button>
+        <button id="win-prestige-btn" class="w-full py-2.5 rounded-xl bg-purple-900/60 border border-purple-500/50 text-purple-200 font-bold text-xs uppercase active:scale-95">Hard Fork (+2 Extra Cores)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOLANA PAY QR & TRANSACTION MODAL -->
+  <div id="solpay-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl p-5 max-w-xs w-full text-center border-purple-500/50 space-y-3 shadow-2xl">
+      <div class="flex justify-between items-center">
+        <span class="text-xs font-black uppercase text-purple-300 flex items-center gap-1.5">
+          <i data-lucide="qr-code" class="w-4 h-4"></i> Solana Pay — SOL Only
+        </span>
+        <button id="close-solpay-btn" class="text-slate-400 p-1 active:scale-95">✕</button>
+      </div>
+
+      <p class="text-[11px] text-slate-300">Scan with Phantom / Solflare to transfer SOL directly:</p>
+
+      <div class="bg-white p-3 rounded-2xl inline-block mx-auto shadow-xl">
+        <canvas id="solpay-canvas" width="180" height="180"></canvas>
+      </div>
+
+      <div class="text-left bg-black/50 rounded-xl p-2.5 text-[10px] mono space-y-1">
+        <div class="flex justify-between text-slate-400">
+          <span>Recipient:</span>
+          <span id="solpay-addr-text" class="text-amber-300 font-bold truncate max-w-[120px]">...</span>
+        </div>
+        <div class="flex justify-between text-slate-400">
+          <span>Amount:</span>
+          <span id="solpay-amt-text" class="text-cyber-solblue font-bold">0.05 SOL</span>
+        </div>
+        <div class="flex justify-between text-slate-400">
+          <span>Currency:</span>
+          <span class="text-white font-bold">SOL ONLY</span>
+        </div>
+        <div class="flex justify-between text-slate-400">
+          <span>Item:</span>
+          <span id="solpay-for-text" class="text-white truncate max-w-[120px]">...</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="solpay-copy-link" class="flex-1 py-2 bg-cyber-800 border border-slate-700 rounded-xl text-[10px] font-bold mono active:scale-95">Copy Pay URL</button>
+        <button id="solpay-simulate-btn" class="flex-1 py-2 bg-gradient-to-r from-purple-600 to-cyber-solblue text-black font-extrabold rounded-xl text-[10px] active:scale-95">I Paid — Verify</button>
+      </div>
+      <p class="text-[9px] mono text-slate-500">SystemProgram.transfer ONLY. No SPL tokens accepted.</p>
+    </div>
+  </div>
+
+  <!-- TX PROCESSING MODAL -->
+  <div id="tx-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl p-5 max-w-xs w-full text-center border-cyber-cyan/50 space-y-3">
+      <div id="tx-spinner" class="w-12 h-12 mx-auto rounded-full border-4 border-cyber-solblue border-t-transparent animate-spin"></div>
+      <div id="tx-icon-success" class="hidden text-4xl">✅</div>
+      <h3 id="tx-header" class="text-sm font-black uppercase tracking-wider">Solana Pay</h3>
+      <p id="tx-detail" class="text-xs mono text-slate-400">Processing on-chain transaction...</p>
+      <div id="tx-actions" class="hidden pt-2 flex gap-2 justify-center">
+        <button id="tx-close-btn" class="px-4 py-1.5 bg-cyber-800 text-xs font-bold rounded-lg border border-slate-700 active:scale-95">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-[68px] left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl glass-card border-cyber-solblue/40 text-cyber-solblue text-xs font-bold mono shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2 max-w-[92vw]">
+    <span>⚡</span>
+    <span id="toast-message">Notification</span>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    lucide.createIcons();
+
+    const WIN_GOAL = 1000000;
+    
+    // Core Game State
+    const GAME = {
+      hash: 0,
+      totalHashEver: 0,
+      forge: 10,
+      genesisCores: 0,
+      clickPower: 1,
+      critChance: 0.05,
+      comboCount: 0,
+      lastTapTime: 0,
+      autoBotActive: false,
+      permanentOverclock: 1,
+      overdriveMult: 1,
+      overdriveTimer: 0,
+      stakedHash: 0,
+      pendingYield: 0,
+      equippedNFTs: [null, null, null],
+      inventoryNFTs: [],
+      buyMult: '1',
+      soundEnabled: true,
+      cluster: 'devnet',
+      merchant: 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS',
+      walletPubkey: null,
+      walletConnected: false,
+      solPaidTotal: 0,
+      totalBlocksMined: 0,
+      started: false,
+      winShown: false
+    };
+
+    // Hardware Rigs
+    const RIGS = [
+      { id: 'pi_node', name: 'Raspberry Pi Node', baseCost: 15, costMult: 1.15, baseHash: 1, count: 0, icon: '📟' },
+      { id: 'gpu_rig', name: 'RTX 4090 Farm', baseCost: 100, costMult: 1.18, baseHash: 8, count: 0, icon: '🎮' },
+      { id: 'asic_rig', name: 'Antminer S21 Pro', baseCost: 850, costMult: 1.20, baseHash: 65, count: 0, icon: '🎛️' },
+      { id: 'immersion_pod', name: 'Liquid Immersion Rack', baseCost: 5500, costMult: 1.22, baseHash: 440, count: 0, icon: '🧪' },
+      { id: 'quantum_core', name: 'Quantum Subnet Node', baseCost: 38000, costMult: 1.24, baseHash: 3100, count: 0, icon: '⚛️' },
+      { id: 'orbital_satellite', name: 'Starlink Sol Relay', baseCost: 280000, costMult: 1.26, baseHash: 22000, count: 0, icon: '🛰️' },
+      { id: 'dyson_collector', name: 'Dyson Solar Tap', baseCost: 2200000, costMult: 1.28, baseHash: 180000, count: 0, icon: '☀️' }
+    ];
+
+    // NFT Tiers
+    const NFT_TIERS = {
+      COMMON: { name: 'Common', color: 'text-slate-300', border: 'border-slate-500', hb: 0.10, cb: 1 },
+      RARE: { name: 'Rare', color: 'text-cyan-400', border: 'border-cyan-500', hb: 0.25, cb: 5 },
+      EPIC: { name: 'Epic', color: 'text-purple-400', border: 'border-purple-500', hb: 0.55, cb: 15 },
+      LEGENDARY: { name: 'Legendary', color: 'text-pink-400', border: 'border-pink-500', hb: 1.10, cb: 40 },
+      MYTHIC: { name: 'Mythic', color: 'text-amber-400', border: 'border-amber-400', hb: 2.25, cb: 120 }
+    };
+
+    const ARTIFACT_NAMES = ['Solana Scythe', 'ZK Beam Drill', 'Sealevel Core', 'PoH Quantum Prism', 'Anchor Plasma Chisel', 'Turbine Rotor'];
+
+    // Web Audio Synthesizer
+    class AudioFX {
+      constructor() { this.ctx = null; }
+      init() {
+        if (!this.ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) this.ctx = new AC();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      tone(f, type, d, v = 0.1) {
+        if (!GAME.soundEnabled) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const o = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          o.type = type || 'sine';
+          o.frequency.setValueAtTime(f, this.ctx.currentTime);
+          o.frequency.exponentialRampToValueAtTime(Math.max(20, f * 0.4), this.ctx.currentTime + d);
+          g.gain.setValueAtTime(v, this.ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + d);
+          o.connect(g);
+          g.connect(this.ctx.destination);
+          o.start();
+          o.stop(this.ctx.currentTime + d);
+        } catch (e) {}
+      }
+      tap() { this.tone(520 + Math.random() * 180, 'triangle', 0.07, 0.08); }
+      crit() {
+        this.tone(880, 'sine', 0.12, 0.15);
+        setTimeout(() => this.tone(1320, 'triangle', 0.15, 0.16), 50);
+      }
+      buy() {
+        this.tone(523, 'sine', 0.07, 0.1);
+        setTimeout(() => this.tone(659, 'sine', 0.09, 0.1), 60);
+      }
+      mint() {
+        this.tone(349, 'triangle', 0.1, 0.12);
+        setTimeout(() => this.tone(523, 'square', 0.12, 0.13), 80);
+        setTimeout(() => this.tone(880, 'sine', 0.25, 0.18), 160);
+      }
+      celebrate() {
+        [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => this.tone(f, 'triangle', 0.2, 0.15), i * 110));
+      }
+    }
+
+    const audio = new AudioFX();
+
+    // Helpers
+    function formatNumber(n) {
+      if (n == null || isNaN(n)) return '0.0';
+      if (n < 1000) return (Math.floor(n * 10) / 10).toFixed(1);
+      const units = ['', 'K', 'M', 'B', 'T', 'Q'];
+      const idx = Math.min(units.length - 1, Math.floor(Math.log10(Math.max(1, n)) / 3));
+      return (n / Math.pow(10, idx * 3)).toFixed(2) + ' ' + units[idx];
+    }
+
+    function formatForge(n) { return Number(n || 0).toFixed(2); }
+    function shortPubkey(a) { if (!a || a.length < 10) return a || '—'; return a.slice(0, 4) + '...' + a.slice(-4); }
+    function isValidSolanaAddress(a) { return typeof a === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a.trim()); }
+
+    function getNFTMultiplier() {
+      let m = 1;
+      GAME.equippedNFTs.forEach(n => { if (n) m += n.hashBoost; });
+      return m;
+    }
+
+    function getNFTClickBonus() {
+      let b = 0;
+      GAME.equippedNFTs.forEach(n => { if (n) b += n.clickBoost; });
+      return b;
+    }
+
+    function getBaseHashRate() {
+      let s = 0;
+      RIGS.forEach(r => s += r.count * r.baseHash);
+      return s;
+    }
+
+    function calculateHashRate() {
+      const base = getBaseHashRate();
+      const pm = 1 + GAME.genesisCores * 0.25;
+      return base * pm * getNFTMultiplier() * GAME.overdriveMult * GAME.permanentOverclock;
+    }
+
+    function calculateClickValue() {
+      const pm = 1 + GAME.genesisCores * 0.25;
+      const comboMult = 1 + Math.min(2.0, GAME.comboCount * 0.05);
+      return (GAME.clickPower + getNFTClickBonus()) * pm * comboMult * GAME.overdriveMult * GAME.permanentOverclock;
+    }
+
+    function calculatePendingCores() {
+      return Math.max(0, Math.floor(Math.sqrt(GAME.totalHashEver / 25000)) - GAME.genesisCores);
+    }
+
+    /* CANVAS INTERACTIVE 3D QUBIT */
+    const canvas = document.getElementById('miner-canvas');
+    const ctx = canvas.getContext('2d');
+    let cWidth = 300, cHeight = 300, angle = 0, particles = [], shockwaves = [];
+
+    function handleResize() {
+      const p = canvas.parentElement;
+      if (!p) return;
+      cWidth = p.clientWidth;
+      cHeight = p.clientHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = cWidth * dpr;
+      canvas.height = cHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', handleResize);
+    setTimeout(handleResize, 50);
+
+    class QuantumParticle {
+      constructor(x, y, c) {
+        this.x = x;
+        this.y = y;
+        this.color = c;
+        const a = Math.random() * Math.PI * 2;
+        const s = 2 + Math.random() * 6;
+        this.vx = Math.cos(a) * s;
+        this.vy = Math.sin(a) * s;
+        this.size = 2.5 + Math.random() * 4;
+        this.life = 1;
+        this.decay = 0.02 + Math.random() * 0.03;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+      }
+      draw(c) {
+        c.save();
+        c.globalAlpha = Math.max(0, this.life);
+        c.fillStyle = this.color;
+        c.shadowColor = this.color;
+        c.shadowBlur = 8;
+        c.fillRect(this.x, this.y, this.size, this.size);
+        c.restore();
+      }
+    }
+
+    function renderCanvas() {
+      ctx.clearRect(0, 0, cWidth, cHeight);
+      const cx = cWidth / 2, cy = cHeight / 2;
+
+      // Cyber Grid Background
+      ctx.save();
+      ctx.strokeStyle = 'rgba(20, 241, 149, 0.04)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < cWidth; x += 36) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, cHeight);
+        ctx.stroke();
+      }
+      for (let y = 0; y < cHeight; y += 36) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(cWidth, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Energy Core Glow
+      const isOverdrive = GAME.overdriveMult > 1;
+      const pulse = Math.sin(Date.now() * 0.004) * 8;
+      const baseRadius = Math.min(cWidth, cHeight) * 0.22 + pulse;
+      const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, baseRadius * 1.8);
+      if (isOverdrive) {
+        grad.addColorStop(0, 'rgba(244, 63, 94, 0.35)');
+        grad.addColorStop(1, 'rgba(6, 11, 30, 0)');
+      } else {
+        grad.addColorStop(0, 'rgba(20, 241, 149, 0.25)');
+        grad.addColorStop(1, 'rgba(6, 11, 30, 0)');
+      }
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseRadius * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Orbiting Solana Rings
+      angle += 0.018;
+      for (let r = 0; r < 3; r++) {
+        const ringRad = baseRadius * (1.15 + r * 0.24);
+        ctx.save();
+        ctx.strokeStyle = r % 2 === 0 ? 'rgba(153, 69, 255, 0.4)' : 'rgba(20, 241, 149, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, ringRad, ringRad * 0.45, (r * Math.PI) / 3, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const satAngle = angle * (r % 2 === 0 ? 1 : -1) + r * 2;
+        const sx = cx + ringRad * Math.cos(satAngle);
+        const sy = cy + (ringRad * 0.45) * Math.sin(satAngle);
+        ctx.fillStyle = r % 2 === 0 ? '#9945FF' : '#14F195';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 3D Hex Qubit Center
+      ctx.save();
+      ctx.translate(cx, cy);
+      const bob = Math.sin(Date.now() * 0.003) * 6;
+      ctx.translate(0, bob);
+      const cubeSize = baseRadius * 0.65;
+      const col = isOverdrive ? '#f43f5e' : '#14F195';
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = 'rgba(17, 29, 64, 0.9)';
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = i * (Math.PI / 3) + angle * 0.5;
+        const px = Math.cos(a) * cubeSize;
+        const py = Math.sin(a) * cubeSize * 0.7;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = isOverdrive ? '#f43f5e' : '#14F195';
+      ctx.font = 'bold 36px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('◈', 0, 0);
+
+      ctx.font = 'bold 10px JetBrains Mono';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText('GENESIS QUBIT', 0, cubeSize * 0.7 + 22);
+      ctx.restore();
+
+      // Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update();
+        p.draw(ctx);
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      // Shockwaves
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.r += 4.5;
+        sw.alpha -= 0.04;
+        ctx.save();
+        ctx.strokeStyle = sw.color;
+        ctx.globalAlpha = Math.max(0, sw.alpha);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        if (sw.alpha <= 0) shockwaves.splice(i, 1);
+      }
+
+      requestAnimationFrame(renderCanvas);
+    }
+    requestAnimationFrame(renderCanvas);
+
+    function spawnFloater(text, x, y, color = '#14F195') {
+      const el = document.createElement('div');
+      el.className = 'float-text';
+      el.innerText = text;
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.color = color;
+      el.style.textShadow = '0 0 10px ' + color;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 850);
+    }
+
+    function executeTap(cx, cy) {
+      if (!GAME.started) return;
+      if (navigator.vibrate) navigator.vibrate(10);
+
+      const now = Date.now();
+      if (now - GAME.lastTapTime < 600) {
+        GAME.comboCount = Math.min(40, GAME.comboCount + 1);
+      } else {
+        GAME.comboCount = 1;
+      }
+      GAME.lastTapTime = now;
+
+      let val = calculateClickValue();
+      const isCrit = Math.random() < GAME.critChance;
+      if (isCrit) {
+        val *= 3;
+        audio.crit();
+      } else {
+        audio.tap();
+      }
+
+      GAME.hash += val;
+      GAME.totalHashEver += val;
+      GAME.totalBlocksMined++;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = cx - rect.left, y = cy - rect.top;
+      const col = isCrit ? '#fbbf24' : (GAME.overdriveMult > 1 ? '#f43f5e' : '#14F195');
+
+      for (let i = 0; i < (isCrit ? 16 : 8); i++) {
+        particles.push(new QuantumParticle(x, y, col));
+      }
+      shockwaves.push({ x, y, r: 10, alpha: 0.8, color: col });
+
+      spawnFloater(isCrit ? `CRIT +${formatNumber(val)}!` : `+${formatNumber(val)}`, cx, cy, col);
+
+      const tut = document.getElementById('click-tutorial');
+      if (tut) tut.style.opacity = '0';
+
+      checkVictory();
+      renderUIFast();
+    }
+
+    canvas.addEventListener('pointerdown', e => executeTap(e.clientX, e.clientY));
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && GAME.started) {
+        e.preventDefault();
+        executeTap(innerWidth / 2, innerHeight / 2);
+      }
+    });
+
+    /* HARDWARE RIGS */
+    function getRigCost(rig, amount) {
+      let t = 0;
+      for (let i = 0; i < amount; i++) {
+        t += rig.baseCost * Math.pow(rig.costMult, rig.count + i);
+      }
+      return Math.floor(t);
+    }
+
+    function calcMax(rig) {
+      let c = 0, sum = 0;
+      while (true) {
+        const price = rig.baseCost * Math.pow(rig.costMult, rig.count + c);
+        if (sum + price <= GAME.hash) {
+          sum += price;
+          c++;
+          if (c >= 1000) break;
+        } else break;
+      }
+      return { count: Math.max(1, c), cost: Math.floor(sum) };
+    }
+
+    function buyRigs(id) {
+      const rig = RIGS.find(r => r.id === id);
+      if (!rig) return;
+      let amount = 1, cost = 0;
+      if (GAME.buyMult === 'max') {
+        const calc = calcMax(rig);
+        amount = calc.count;
+        cost = calc.cost;
+      } else {
+        amount = parseInt(GAME.buyMult, 10);
+        cost = getRigCost(rig, amount);
+      }
+
+      if (GAME.hash >= cost && cost > 0) {
+        GAME.hash -= cost;
+        rig.count += amount;
+        audio.buy();
+        showToast(`⚡ +${amount}x ${rig.name}`);
+        renderRigsList();
+        renderUIFast();
+        saveGame();
+      } else {
+        audio.tone(180, 'sawtooth', 0.15, 0.1);
+        showToast(`❌ Need ${formatNumber(cost)} $HASH`);
+      }
+    }
+
+    function renderRigsList() {
+      const cont = document.getElementById('rigs-container');
+      cont.innerHTML = '';
+      RIGS.forEach(rig => {
+        let buyCount = 1, cost = 0;
+        if (GAME.buyMult === 'max') {
+          const calc = calcMax(rig);
+          buyCount = calc.count;
+          cost = calc.cost === 0 ? getRigCost(rig, 1) : calc.cost;
+        } else {
+          buyCount = parseInt(GAME.buyMult, 10);
+          cost = getRigCost(rig, buyCount);
+        }
+
+        const can = GAME.hash >= cost;
+        const curYield = rig.baseHash * rig.count;
+        const card = document.createElement('div');
+        card.className = `glass-card p-3 rounded-2xl flex items-center justify-between gap-3 ${can ? 'border-cyber-solblue/40 shadow-md' : 'border-cyber-800 opacity-80'}`;
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-12 h-12 rounded-xl bg-black/60 border border-cyber-700/60 flex items-center justify-center text-2xl shrink-0">
+              ${rig.icon}
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-black uppercase text-white truncate">${rig.name}</span>
+                <span class="mono text-[10px] bg-cyber-950 px-1.5 py-0.5 rounded text-cyber-solblue border border-cyber-solblue/30 font-bold">Lv.${rig.count}</span>
+              </div>
+              <div class="text-[11px] text-slate-400 mono mt-0.5">
+                Yield <b class="text-cyan-300">+${formatNumber(curYield || rig.baseHash)} H/s</b> <span class="text-[9px] text-slate-500">(${rig.baseHash}/ea)</span>
+              </div>
+            </div>
+          </div>
+          <button class="buy-rig-action shrink-0 px-3.5 py-2 rounded-xl font-black text-xs mono ${can ? 'bg-gradient-to-r from-cyber-solblue to-cyber-neon text-cyber-950 shadow-md active:scale-95' : 'bg-cyber-900 border border-slate-700 text-slate-500 pointer-events-none'}" data-rig="${rig.id}">
+            BUY ${buyCount}×<br><span class="text-[9px]">${formatNumber(cost)} ◈</span>
+          </button>
+        `;
+        cont.appendChild(card);
+      });
+
+      cont.querySelectorAll('.buy-rig-action').forEach(b => b.addEventListener('click', () => buyRigs(b.dataset.rig)));
+    }
+
+    /* NFT CRAFTING & GEAR */
+    function synthesizeNFT(forced = null) {
+      const cost = forced ? 0 : 2;
+      if (GAME.forge < cost) {
+        showToast('❌ Need 2.0 $FORGE');
+        return;
+      }
+      GAME.forge -= cost;
+      audio.mint();
+
+      let tierKey = forced;
+      if (!tierKey) {
+        const r = Math.random();
+        if (r < 0.02) tierKey = 'MYTHIC';
+        else if (r < 0.08) tierKey = 'LEGENDARY';
+        else if (r < 0.25) tierKey = 'EPIC';
+        else if (r < 0.55) tierKey = 'RARE';
+        else tierKey = 'COMMON';
+      }
+
+      const tier = NFT_TIERS[tierKey];
+      const base = ARTIFACT_NAMES[Math.floor(Math.random() * ARTIFACT_NAMES.length)];
+      const serial = '#' + Math.floor(1000 + Math.random() * 9000);
+      const nft = {
+        id: 'nft_' + Date.now() + '_' + Math.floor(Math.random() * 999),
+        name: `${tier.name} ${base}`,
+        tokenSerial: serial,
+        tierKey,
+        hashBoost: tier.hb,
+        clickBoost: tier.cb
+      };
+
+      GAME.inventoryNFTs.push(nft);
+      showToast(`🎉 Minted ${nft.name}!`);
+      renderNFTDeck();
+      renderUIFast();
+      saveGame();
+    }
+
+    function renderNFTDeck() {
+      const deck = document.getElementById('equipped-deck');
+      deck.innerHTML = '';
+      let equipped = 0;
+
+      for (let s = 0; s < 3; s++) {
+        const item = GAME.equippedNFTs[s];
+        const el = document.createElement('div');
+        if (item) {
+          equipped++;
+          const tier = NFT_TIERS[item.tierKey];
+          el.className = `glass-card rounded-xl p-2.5 flex flex-col justify-between border ${tier.border} min-h-[110px] text-center shadow-lg`;
+          el.innerHTML = `
+            <div class="flex justify-between text-[9px] font-black ${tier.color}">
+              <span>${tier.name}</span>
+              <span>${item.tokenSerial}</span>
+            </div>
+            <div class="text-[11px] font-black text-white truncate my-1">${item.name}</div>
+            <div class="text-[9px] mono text-slate-300">
+              <div class="text-cyber-solblue">+${Math.round(item.hashBoost * 100)}% Rate</div>
+              <div class="text-purple-300">+${item.clickBoost} Tap</div>
+            </div>
+            <button class="unequip-slot-btn mt-1 text-[9px] font-bold bg-black/60 hover:bg-black/90 py-1 rounded border border-slate-700 active:scale-95" data-slot="${s}">UNEQUIP</button>
+          `;
+        } else {
+          el.className = 'glass-card rounded-xl p-2.5 flex flex-col items-center justify-center border border-dashed border-cyber-700/60 min-h-[110px] text-center';
+          el.innerHTML = `
+            <span class="text-[9px] mono text-slate-500">SLOT ${s + 1}</span>
+            <span class="text-xl opacity-25 my-1">🛡️</span>
+            <span class="text-[9px] mono text-slate-600">EMPTY</span>
+          `;
+        }
+        deck.appendChild(el);
+      }
+      document.getElementById('nft-equipped-count').innerText = equipped;
+
+      const inv = document.getElementById('inventory-grid');
+      document.getElementById('inv-count-num').innerText = GAME.inventoryNFTs.length;
+      inv.innerHTML = '';
+
+      if (GAME.inventoryNFTs.length === 0) {
+        inv.innerHTML = `<div class="col-span-full py-8 text-center text-xs mono text-slate-500 border border-dashed border-cyber-700/50 rounded-xl">No relics yet. Mint with $FORGE or unlock Mythic artifacts in Whale Store.</div>`;
+      } else {
+        GAME.inventoryNFTs.forEach(nft => {
+          const tier = NFT_TIERS[nft.tierKey];
+          const card = document.createElement('div');
+          card.className = `glass-card rounded-xl p-3 flex flex-col justify-between border ${tier.border}`;
+          card.innerHTML = `
+            <div>
+              <div class="flex justify-between text-[9px] font-black ${tier.color}">
+                <span>${tier.name}</span>
+                <span class="mono">${nft.tokenSerial}</span>
+              </div>
+              <div class="text-xs font-bold text-white my-1 truncate">${nft.name}</div>
+              <div class="text-[9px] mono text-slate-300 space-y-0.5 mb-2">
+                <div class="text-cyber-solblue">+${Math.round(nft.hashBoost * 100)}% Speed</div>
+                <div class="text-purple-300">+${nft.clickBoost} Tap</div>
+              </div>
+            </div>
+            <button class="equip-nft-btn w-full py-1.5 bg-cyber-solblue hover:bg-cyber-neon text-cyber-950 font-black text-[10px] rounded-lg active:scale-95" data-id="${nft.id}">EQUIP</button>
+          `;
+          inv.appendChild(card);
+        });
+      }
+
+      deck.querySelectorAll('.unequip-slot-btn').forEach(b => b.addEventListener('click', () => {
+        const slot = parseInt(b.dataset.slot, 10);
+        const it = GAME.equippedNFTs[slot];
+        if (!it) return;
+        GAME.equippedNFTs[slot] = null;
+        GAME.inventoryNFTs.push(it);
+        renderNFTDeck();
+        renderUIFast();
+        saveGame();
+      }));
+
+      inv.querySelectorAll('.equip-nft-btn').forEach(b => b.addEventListener('click', () => {
+        const id = b.dataset.id;
+        const idx = GAME.inventoryNFTs.findIndex(x => x.id === id);
+        if (idx < 0) return;
+        let empty = GAME.equippedNFTs.indexOf(null);
+        if (empty === -1) empty = 0;
+        const toEquip = GAME.inventoryNFTs.splice(idx, 1)[0];
+        if (GAME.equippedNFTs[empty]) GAME.inventoryNFTs.push(GAME.equippedNFTs[empty]);
+        GAME.equippedNFTs[empty] = toEquip;
+        audio.buy();
+        renderNFTDeck();
+        renderUIFast();
+        saveGame();
+      }));
+    }
+
+    /* DEFI & HARD FORK */
+    function stakeHalf() {
+      if (GAME.hash < 10) {
+        showToast('❌ Need at least 10 $HASH');
+        return;
+      }
+      const half = Math.floor(GAME.hash * 0.5);
+      GAME.hash -= half;
+      GAME.stakedHash += half;
+      audio.buy();
+      showToast(`🏦 Staked ${formatNumber(half)} $HASH`);
+      renderUIFast();
+      saveGame();
+    }
+
+    function harvest() {
+      if (GAME.pendingYield < 0.01) {
+        showToast('❌ No yield available to harvest');
+        return;
+      }
+      const h = GAME.pendingYield;
+      GAME.forge += h;
+      GAME.pendingYield = 0;
+      audio.celebrate();
+      showToast(`⬡ Harvested +${formatForge(h)} $FORGE`);
+      renderUIFast();
+      saveGame();
+    }
+
+    function unstake() {
+      if (GAME.stakedHash <= 0) {
+        showToast('❌ Nothing staked in pool');
+        return;
+      }
+      GAME.hash += GAME.stakedHash;
+      showToast(`🔓 Unstaked ${formatNumber(GAME.stakedHash)} $HASH`);
+      GAME.stakedHash = 0;
+      renderUIFast();
+      saveGame();
+    }
+
+    function doHardFork() {
+      const c = calculatePendingCores();
+      if (c < 1) {
+        showToast('❌ Reach 25,000 lifetime $HASH for 1 Core');
+        return;
+      }
+      if (!confirm(`Execute Hard Fork? You will gain +${c} Genesis Cores (+${c * 25}% boost permanently) but reset your current $HASH, hardware, and staking.`)) return;
+
+      GAME.genesisCores += c;
+      GAME.hash = 0;
+      GAME.stakedHash = 0;
+      GAME.pendingYield = 0;
+      RIGS.forEach(r => r.count = 0);
+      audio.celebrate();
+      showToast(`🔱 Hard Fork Executed! +${c} Genesis Cores`);
+      renderRigsList();
+      renderUIFast();
+      saveGame();
+    }
+
+    /* AIRDROP RANDOM EVENT */
+    const balloon = document.getElementById('airdrop-balloon');
+    let airdropActive = false;
+
+    function spawnAirdrop() {
+      if (airdropActive || !GAME.started) return;
+      airdropActive = true;
+      const x = 30 + Math.random() * (cWidth - 90);
+      const y = 80 + Math.random() * (cHeight - 220);
+      balloon.style.left = x + 'px';
+      balloon.style.top = y + 'px';
+      balloon.classList.remove('hidden');
+
+      setTimeout(() => {
+        if (airdropActive) {
+          balloon.classList.add('hidden');
+          airdropActive = false;
+        }
+      }, 10000);
+    }
+
+    setInterval(() => {
+      if (Math.random() < 0.65) spawnAirdrop();
+    }, 32000);
+
+    balloon.addEventListener('click', e => {
+      e.stopPropagation();
+      balloon.classList.add('hidden');
+      airdropActive = false;
+      audio.celebrate();
+      const bonusForge = 3 + Math.random() * 5;
+      const bonusHash = calculateHashRate() * 50 + 1000;
+      GAME.forge += bonusForge;
+      GAME.hash += bonusHash;
+      GAME.totalHashEver += bonusHash;
+      showToast(`🎁 Airdrop: +${formatForge(bonusForge)} $FORGE, +${formatNumber(bonusHash)} $HASH!`);
+      renderUIFast();
+    });
+
+    /* SOLANA PAY & WALLET INTEGRATION (SOL ONLY) */
+    function getProvider() {
+      if ('phantom' in window && window.phantom?.solana?.isPhantom) return window.phantom.solana;
+      if ('solana' in window && window.solana?.isPhantom) return window.solana;
+      return null;
+    }
+
+    async function connectWallet() {
+      const p = getProvider();
+      if (!p) {
+        GAME.walletPubkey = 'Demo' + Math.floor(1000 + Math.random() * 9000);
+        GAME.walletConnected = false;
+        document.getElementById('wallet-btn-label').innerText = shortPubkey(GAME.walletPubkey);
+        showToast('⚠️ No Phantom — Testnet QR Mode (SOL Only)');
+        return;
+      }
+      try {
+        const r = await p.connect();
+        GAME.walletPubkey = r.publicKey.toString();
+        GAME.walletConnected = true;
+        document.getElementById('wallet-btn-label').innerText = shortPubkey(GAME.walletPubkey);
+        showToast(`◎ Connected ${shortPubkey(GAME.walletPubkey)}`);
+        
+        if (window.solanaWeb3) {
+          try {
+            const conn = new window.solanaWeb3.Connection(`https://api.${GAME.cluster}.solana.com`, 'confirmed');
+            const bal = await conn.getBalance(new window.solanaWeb3.PublicKey(GAME.walletPubkey));
+            showToast(`◎ SOL Balance: ${(bal / 1e9).toFixed(4)} SOL`);
+          } catch (e) {}
+        }
+      } catch (e) {
+        showToast('❌ Wallet connection rejected');
+      }
+    }
+
+    function showTx(title, detail) {
+      document.getElementById('tx-header').innerText = title;
+      document.getElementById('tx-detail').innerText = detail;
+      document.getElementById('tx-spinner').classList.remove('hidden');
+      document.getElementById('tx-icon-success').classList.add('hidden');
+      document.getElementById('tx-actions').classList.add('hidden');
+      document.getElementById('tx-modal').classList.remove('hidden');
+    }
+
+    function hideTx() {
+      document.getElementById('tx-modal').classList.add('hidden');
+    }
+
+    function drawQR(cv, text) {
+      const q = cv.getContext('2d'), w = cv.width, h = cv.height;
+      q.fillStyle = '#fff';
+      q.fillRect(0, 0, w, h);
+      q.fillStyle = '#060b1e';
+      const cell = 6;
+      let hv = 0;
+      for (let i = 0; i < text.length; i++) hv = (hv << 5) - hv + text.charCodeAt(i);
+      for (let r = 0; r < w; r += cell) {
+        for (let c = 0; c < h; c += cell) {
+          const bit = Math.abs(Math.sin(hv + r * 13 + c * 37));
+          if (bit > 0.45 || (r < 30 && c < 30) || (r > w - 36 && c < 30) || (r < 30 && c > h - 36)) {
+            q.fillRect(r, c, cell - 1, cell - 1);
+          }
+        }
+      }
+    }
+
+    async function execSolPay(sol, forge, hash, mythic, label) {
+      const rec = GAME.merchant.trim();
+      if (!isValidSolanaAddress(rec)) {
+        showToast('❌ Invalid receiving SOL address');
+        return;
+      }
+
+      const provider = getProvider();
+      // Phantom Direct Transfer in SOL
+      if (GAME.walletConnected && provider && window.solanaWeb3) {
+        showTx(`Sending ${sol} SOL`, `Awaiting wallet signature for ${label}... (SOL ONLY)`);
+        try {
+          const conn = new window.solanaWeb3.Connection(`https://api.${GAME.cluster}.solana.com`, 'confirmed');
+          const from = new window.solanaWeb3.PublicKey(GAME.walletPubkey);
+          const to = new window.solanaWeb3.PublicKey(rec);
+          const lam = Math.floor(sol * 1e9);
+
+          // Pure SOL transfer instruction
+          const tx = new window.solanaWeb3.Transaction().add(
+            window.solanaWeb3.SystemProgram.transfer({
+              fromPubkey: from,
+              toPubkey: to,
+              lamports: lam
+            })
+          );
+          tx.feePayer = from;
+          const { blockhash } = await conn.getLatestBlockhash();
+          tx.recentBlockhash = blockhash;
+
+          const sig = await provider.signAndSendTransaction(tx);
+          document.getElementById('tx-detail').innerText = `Confirming block ${shortPubkey(sig.signature || sig)}...`;
+          await conn.confirmTransaction(sig.signature || sig, 'confirmed');
+
+          grantReward(sol, forge, hash, mythic, label);
+          document.getElementById('tx-spinner').classList.add('hidden');
+          document.getElementById('tx-icon-success').classList.remove('hidden');
+          document.getElementById('tx-detail').innerText = `Confirmed ${sol} SOL → ${shortPubkey(rec)}`;
+          document.getElementById('tx-actions').classList.remove('hidden');
+          return;
+        } catch (e) {
+          hideTx();
+          showToast('⚠️ Direct signature dismissed — opening Solana Pay QR (SOL Only)');
+        }
+      }
+
+      openSolPay(sol, forge, hash, mythic, label);
+    }
+
+    function openSolPay(sol, forge, hash, mythic, label) {
+      const rec = GAME.merchant;
+      const url = `solana:${rec}?amount=${sol}&label=SolForgeTycoon&message=${encodeURIComponent(label)}&splToken=SOL`;
+      document.getElementById('solpay-addr-text').innerText = shortPubkey(rec);
+      document.getElementById('solpay-amt-text').innerText = sol + ' SOL';
+      document.getElementById('solpay-for-text').innerText = label;
+      drawQR(document.getElementById('solpay-canvas'), url);
+
+      const modal = document.getElementById('solpay-modal');
+      modal.classList.remove('hidden');
+
+      document.getElementById('solpay-simulate-btn').onclick = () => {
+        modal.classList.add('hidden');
+        showTx('Verifying SOL Transfer...', `Scanning ledger for ${sol} SOL to ${shortPubkey(rec)}`);
+        setTimeout(() => {
+          hideTx();
+          grantReward(sol, forge, hash, mythic, label);
+        }, 1200);
+      };
+
+      document.getElementById('solpay-copy-link').onclick = () => {
+        navigator.clipboard.writeText(url);
+        showToast('📋 Solana Pay URL copied');
+      };
+    }
+
+    function grantReward(sol, forge, hash, mythic, label) {
+      if (forge) GAME.forge += forge;
+      if (hash) {
+        GAME.hash += hash;
+        GAME.totalHashEver += hash;
+      }
+      if (mythic) synthesizeNFT('MYTHIC');
+      GAME.solPaidTotal += sol;
+      audio.celebrate();
+      showToast(`✅ ${label} Unlocked! +${sol} SOL verified`);
+      renderUIFast();
+      saveGame();
+    }
+
+    /* GAME LOOP TICKER (100ms) */
+    let tick = 0;
+    setInterval(() => {
+      if (!GAME.started) return;
+      tick++;
+
+      const rate = calculateHashRate();
+      const delta = rate / 10;
+      GAME.hash += delta;
+      GAME.totalHashEver += delta;
+
+      // Auto Bot
+      if (GAME.autoBotActive) {
+        const yld = calculateClickValue() * 0.8;
+        GAME.hash += yld;
+        GAME.totalHashEver += yld;
+        GAME.totalBlocksMined++;
+        if (tick % 4 === 0) {
+          particles.push(new QuantumParticle(cWidth / 2 + (Math.random() - 0.5) * 60, cHeight / 2 + (Math.random() - 0.5) * 60, '#14F195'));
+        }
+      }
+
+      // Staking yield
+      if (GAME.stakedHash > 0) {
+        const sec = (GAME.stakedHash / 150000) * 0.08;
+        GAME.pendingYield += sec / 10;
+      }
+
+      // Combo Decay
+      if (Date.now() - GAME.lastTapTime > 1500 && GAME.comboCount > 0) {
+        GAME.comboCount = Math.max(0, GAME.comboCount - 1);
+      }
+
+      // Overdrive Timer
+      if (GAME.overdriveTimer > 0) {
+        GAME.overdriveTimer -= 0.1;
+        document.getElementById('overdrive-btn-sub').innerText = `Active (${Math.ceil(GAME.overdriveTimer)}s)`;
+        if (GAME.overdriveTimer <= 0) {
+          GAME.overdriveMult = 1;
+          document.getElementById('overdrive-indicator').classList.add('hidden');
+          document.getElementById('overdrive-btn-sub').innerText = 'Free 20s Boost';
+        }
+      }
+
+      if (tick % 2 === 0) renderUIFast();
+      if (tick % 100 === 0) saveGame();
+      if (tick % 20 === 0) checkVictory();
+    }, 100);
+
+    function renderUIFast() {
+      document.getElementById('stat-hash').innerText = formatNumber(GAME.hash);
+      document.getElementById('stat-forge').innerText = formatForge(GAME.forge);
+      document.getElementById('stat-sol-paid').innerText = GAME.solPaidTotal.toFixed(2) + ' SOL';
+      document.getElementById('stat-rate').innerText = formatNumber(calculateHashRate()) + ' H/s';
+      document.getElementById('stat-click').innerText = '+' + formatNumber(calculateClickValue());
+      document.getElementById('stat-cores').innerText = '+' + (GAME.genesisCores * 25) + '%';
+      document.getElementById('crit-chance-display').innerText = (GAME.critChance * 100).toFixed(1) + '%';
+
+      const comboMult = (1 + Math.min(2.0, GAME.comboCount * 0.05)).toFixed(1);
+      document.getElementById('combo-multiplier-text').innerText = `${comboMult}x COMBO`;
+
+      const ratio = Math.min(1, GAME.totalHashEver / WIN_GOAL);
+      const pct = (ratio * 100).toFixed(1);
+      document.getElementById('goal-pct').innerText = pct + '%';
+      document.getElementById('goal-progress-bar').style.width = pct + '%';
+      document.getElementById('goal-current-text').innerText = formatNumber(GAME.totalHashEver);
+
+      const pending = calculatePendingCores();
+      document.getElementById('current-cores-count').innerText = GAME.genesisCores;
+      document.getElementById('pending-cores-count').innerText = '+' + pending + ' Cores';
+      document.getElementById('cores-mult-boost').innerText = '+' + (GAME.genesisCores * 25) + '%';
+
+      const forkBtn = document.getElementById('execute-hardfork-btn');
+      if (pending >= 1) {
+        forkBtn.disabled = false;
+        forkBtn.innerText = `EXECUTE HARD FORK (+${pending} CORES)`;
+      } else {
+        forkBtn.disabled = true;
+        forkBtn.innerText = 'EXECUTE HARD FORK — NEEDS 1 CORE';
+      }
+
+      document.getElementById('staked-hash-amount').innerText = formatNumber(GAME.stakedHash) + ' $HASH';
+      document.getElementById('accrued-forge-amount').innerText = formatForge(GAME.pendingYield) + ' $FORGE';
+      document.getElementById('merchant-revenue-text').innerText = GAME.solPaidTotal.toFixed(4) + ' SOL';
+      document.getElementById('merchant-cluster-pill').innerText = GAME.cluster.toUpperCase();
+
+      if (GAME.overdriveMult > 1) {
+        document.getElementById('overdrive-indicator').classList.remove('hidden');
+      } else {
+        document.getElementById('overdrive-indicator').classList.add('hidden');
+      }
+
+      if (GAME.autoBotActive) {
+        document.getElementById('autobot-indicator').classList.remove('hidden');
+        const b1 = document.getElementById('buy-autobot-sol-btn');
+        if (b1) { b1.innerText = 'DEPLOYED'; b1.disabled = true; b1.classList.add('opacity-50'); }
+        const b2 = document.getElementById('buy-autobot-forge-btn');
+        if (b2) { b2.innerText = 'ACTIVE'; b2.disabled = true; }
+      }
+    }
+
+    function checkVictory() {
+      if (GAME.totalHashEver >= WIN_GOAL && !GAME.winShown) {
+        GAME.winShown = true;
+        audio.celebrate();
+        document.getElementById('win-hash-val').innerText = formatNumber(GAME.totalHashEver);
+        document.getElementById('win-forge-val').innerText = formatForge(GAME.forge);
+        document.getElementById('win-sol-val').innerText = GAME.solPaidTotal.toFixed(2) + ' SOL';
+        document.getElementById('win-modal').classList.remove('hidden');
+      }
+    }
+
+    let toastTimer;
+    function showToast(m) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-message').innerText = m;
+      t.classList.remove('opacity-0');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.add('opacity-0'), 2400);
+    }
+
+    /* SAVE & LOAD SYSTEM */
+    function saveGame() {
+      try {
+        const payload = {
+          game: GAME,
+          rigs: RIGS.map(r => ({ id: r.id, count: r.count })),
+          timestamp: Date.now()
+        };
+        localStorage.setItem('solforge_save_prod_v1', JSON.stringify(payload));
+      } catch (e) {}
+    }
+
+    function loadSave() {
+      try {
+        const raw = localStorage.getItem('solforge_save_prod_v1');
+        if (!raw) return false;
+        const d = JSON.parse(raw);
+        if (d.game) Object.assign(GAME, d.game);
+        if (d.rigs) {
+          d.rigs.forEach(s => {
+            const t = RIGS.find(r => r.id === s.id);
+            if (t) t.count = s.count || 0;
+          });
+        }
+        if (d.timestamp) {
+          const off = Math.min(86400, Math.floor((Date.now() - d.timestamp) / 1000));
+          if (off > 10) {
+            const r = calculateHashRate();
+            const earn = r * off * 0.8;
+            if (earn > 0) {
+              GAME.hash += earn;
+              GAME.totalHashEver += earn;
+              setTimeout(() => showToast(`⚡ Offline earnings: +${formatNumber(earn)} $HASH`), 900);
+            }
+          }
+        }
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    /* UI INTERACTIONS */
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        audio.tap();
+        document.querySelectorAll('.nav-tab-btn').forEach(b => {
+          b.classList.remove('text-cyber-solblue');
+          b.classList.add('text-slate-400');
+        });
+        btn.classList.add('text-cyber-solblue');
+        btn.classList.remove('text-slate-400');
+
+        const id = btn.dataset.tab;
+        document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+
+        if (id === 'tab-mine') handleResize();
+        if (id === 'tab-rigs') renderRigsList();
+        if (id === 'tab-nfts') renderNFTDeck();
+      });
+    });
+
+    document.querySelectorAll('.buy-mult-select').forEach(btn => {
+      btn.addEventListener('click', () => {
+        audio.tap();
+        document.querySelectorAll('.buy-mult-select').forEach(b => {
+          b.className = 'buy-mult-select px-2.5 py-1 rounded text-slate-400';
+        });
+        btn.className = 'buy-mult-select px-2.5 py-1 rounded bg-cyber-solblue text-cyber-950 font-black';
+        GAME.buyMult = btn.dataset.mult;
+        renderRigsList();
+      });
+    });
+
+    document.getElementById('activate-overdrive-btn').addEventListener('click', () => {
+      if (GAME.overdriveTimer > 0) {
+        showToast('⏳ Overdrive already active!');
+        return;
+      }
+      audio.celebrate();
+      GAME.overdriveMult = 3;
+      GAME.overdriveTimer = 20;
+      showToast('⚡ 3× Overdrive activated for 20s!');
+      renderUIFast();
+    });
+
+    let faucetCd = 0;
+    document.getElementById('gasless-faucet-btn').addEventListener('click', () => {
+      if (faucetCd > 0) {
+        showToast(`⏳ Faucet cooling down (${faucetCd}s)`);
+        return;
+      }
+      audio.buy();
+      const bonus = 350 + calculateHashRate() * 25;
+      GAME.hash += bonus;
+      GAME.totalHashEver += bonus;
+      faucetCd = 30;
+      showToast(`💧 Faucet Claim: +${formatNumber(bonus)} $HASH`);
+
+      const int = setInterval(() => {
+        faucetCd--;
+        if (faucetCd <= 0) {
+          clearInterval(int);
+          document.getElementById('faucet-btn-sub').innerText = '+350 $HASH';
+        } else {
+          document.getElementById('faucet-btn-sub').innerText = `Wait ${faucetCd}s`;
+        }
+      }, 1000);
+      renderUIFast();
+    });
+
+    document.getElementById('stake-half-btn').addEventListener('click', stakeHalf);
+    document.getElementById('harvest-forge-btn').addEventListener('click', harvest);
+    document.getElementById('unstake-all-btn').addEventListener('click', unstake);
+    document.getElementById('execute-hardfork-btn').addEventListener('click', doHardFork);
+    document.getElementById('mint-nft-free-btn').addEventListener('click', () => synthesizeNFT());
+
+    document.getElementById('claim-daily-grant-btn').addEventListener('click', e => {
+      GAME.forge += 5;
+      GAME.hash += 5000;
+      GAME.totalHashEver += 5000;
+      audio.celebrate();
+      e.target.disabled = true;
+      e.target.innerText = 'CLAIMED';
+      e.target.classList.add('opacity-40');
+      showToast('🎁 Daily Grant: +5 $FORGE & +5,000 $HASH added!');
+      renderUIFast();
+      saveGame();
+    });
+
+    document.querySelectorAll('.buy-sol-item-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sol = parseFloat(btn.dataset.sol);
+        const forge = parseFloat(btn.dataset.forge) || 0;
+        const hash = parseFloat(btn.dataset.hash) || 0;
+        const myth = btn.dataset.mythic === 'true';
+        const label = btn.dataset.label;
+        execSolPay(sol, forge, hash, myth, label);
+      });
+    });
+
+    document.querySelectorAll('.demo-pack-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        audio.celebrate();
+        const f = parseFloat(btn.dataset.forge) || 0;
+        const h = parseFloat(btn.dataset.hash) || 0;
+        if (f) GAME.forge += f;
+        if (h) {
+          GAME.hash += h;
+          GAME.totalHashEver += h;
+        }
+        if (btn.dataset.mythic === 'true') synthesizeNFT('MYTHIC');
+        if (btn.dataset.overclock === 'true') {
+          GAME.permanentOverclock = 2;
+          showToast('⚡ 2× Overclock Activated (Demo)!');
+        } else {
+          showToast(`🎁 Demo: +${f} $FORGE granted`);
+        }
+        renderUIFast();
+        saveGame();
+      });
+    });
+
+    document.getElementById('buy-autobot-sol-btn').addEventListener('click', () => {
+      execSolPay(0.10, 10, 10000, false, 'Auto-Bot Contract');
+      setTimeout(() => {
+        GAME.autoBotActive = true;
+        renderUIFast();
+      }, 1500);
+    });
+
+    document.getElementById('buy-autobot-forge-btn').addEventListener('click', () => {
+      if (GAME.autoBotActive) {
+        showToast('✅ Auto-Bot is already active');
+        return;
+      }
+      if (GAME.forge < 25) {
+        showToast('❌ Need 25 $FORGE');
+        return;
+      }
+      GAME.forge -= 25;
+      GAME.autoBotActive = true;
+      audio.celebrate();
+      showToast('🤖 Auto-Bot Worker Activated!');
+      renderUIFast();
+      saveGame();
+    });
+
+    document.getElementById('buy-2x-overclock-btn').addEventListener('click', () => {
+      execSolPay(0.15, 20, 20000, false, '2× Overclock Pass');
+      setTimeout(() => {
+        GAME.permanentOverclock = 2;
+        renderUIFast();
+      }, 1500);
+    });
+
+    function setMerchant(v) {
+      v = (v || '').trim();
+      if (!isValidSolanaAddress(v)) {
+        showToast('❌ Invalid Solana public address');
+        return false;
+      }
+      GAME.merchant = v;
+      document.getElementById('merchant-wallet-input').value = v;
+      document.getElementById('display-merchant-start').innerText = v;
+      showToast(`◎ Receiving address set to ${shortPubkey(v)}`);
+      renderUIFast();
+      saveGame();
+      return true;
+    }
+
+    document.getElementById('update-merchant-btn').addEventListener('click', () => {
+      setMerchant(document.getElementById('merchant-wallet-input').value);
+    });
+
+    document.getElementById('copy-merchant-address').addEventListener('click', () => {
+      navigator.clipboard.writeText(GAME.merchant);
+      showToast('📋 SOL Receiver Address copied');
+    });
+
+    document.getElementById('copy-start-address').addEventListener('click', () => {
+      navigator.clipboard.writeText(GAME.merchant);
+      showToast('📋 SOL Receiver Address copied');
+    });
+
+    document.getElementById('view-on-solscan-btn').addEventListener('click', () => {
+      window.open(`https://solscan.io/account/${GAME.merchant}?cluster=${GAME.cluster}`, '_blank');
+    });
+
+    document.querySelectorAll('.network-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        GAME.cluster = btn.dataset.cluster;
+        document.querySelectorAll('.network-toggle-btn').forEach(b => {
+          b.className = 'network-toggle-btn flex-1 py-1.5 rounded-lg bg-cyber-900 border border-slate-700 text-slate-300 text-[10px] font-bold mono';
+        });
+        btn.className = 'network-toggle-btn flex-1 py-1.5 rounded-lg bg-cyber-solblue text-cyber-950 text-[10px] font-black mono';
+        document.getElementById('current-cluster-tag').innerText = GAME.cluster.toUpperCase();
+        showToast(`🌐 Network switched to ${GAME.cluster} (SOL ONLY)`);
+        renderUIFast();
+      });
+    });
+
+    document.getElementById('wallet-connect-btn').addEventListener('click', connectWallet);
+    document.getElementById('audio-toggle-btn').addEventListener('click', () => {
+      GAME.soundEnabled = !GAME.soundEnabled;
+      const ic = document.getElementById('audio-icon');
+      if (GAME.soundEnabled) {
+        audio.tap();
+        ic.setAttribute('data-lucide', 'volume-2');
+        showToast('🔊 Audio Enabled');
+      } else {
+        ic.setAttribute('data-lucide', 'volume-x');
+        showToast('🔇 Audio Muted');
+      }
+      lucide.createIcons();
+    });
+
+    document.getElementById('launch-free-btn').addEventListener('click', () => {
+      GAME.started = true;
+      audio.celebrate();
+      document.getElementById('start-modal').style.display = 'none';
+      handleResize();
+      showToast('⚡ Welcome to SolForge! Tap the Qubit to begin.');
+      renderUIFast();
+      saveGame();
+    });
+
+    document.getElementById('close-solpay-btn').addEventListener('click', () => {
+      document.getElementById('solpay-modal').classList.add('hidden');
+    });
+
+    document.getElementById('tx-close-btn').addEventListener('click', hideTx);
+
+    document.getElementById('win-endless-btn').addEventListener('click', () => {
+      document.getElementById('win-modal').classList.add('hidden');
+      showToast('🌟 Endless Validator Mode active!');
+    });
+
+    document.getElementById('win-prestige-btn').addEventListener('click', () => {
+      document.getElementById('win-modal').classList.add('hidden');
+      GAME.genesisCores += 2;
+      GAME.hash = 0;
+      GAME.stakedHash = 0;
+      GAME.pendingYield = 0;
+      GAME.totalHashEver = 0;
+      GAME.winShown = false;
+      RIGS.forEach(r => r.count = 0);
+      renderRigsList();
+      renderUIFast();
+      saveGame();
+      showToast('🔱 +2 Extra Cores gained! Validator hard-forked.');
+    });
+
+    // Boot Initialization
+    (function init() {
+      const hasSave = loadSave();
+      if (hasSave) {
+        const resBtn = document.getElementById('resume-save-btn');
+        resBtn.classList.remove('hidden');
+        resBtn.addEventListener('click', () => {
+          GAME.started = true;
+          document.getElementById('start-modal').style.display = 'none';
+          handleResize();
+          showToast('↻ Saved empire resumed!');
+        });
+      }
+
+      handleResize();
+      renderRigsList();
+      renderNFTDeck();
+      renderUIFast();
+
+      document.getElementById('merchant-wallet-input').value = GAME.merchant;
+      document.getElementById('display-merchant-start').innerText = GAME.merchant;
+      document.getElementById('current-cluster-tag').innerText = GAME.cluster.toUpperCase();
+      lucide.createIcons();
+
+      // Ambient TPS ticker animation
+      setInterval(() => {
+        document.getElementById('tps-ticker').innerText = 'TPS ' + (3100 + Math.floor(Math.random() * 500));
+      }, 2000);
+    })();
+  </script>
+</body>
+</html>
