@@ -161,6 +161,7 @@
           <span id="tps-ticker">TPS 3,420</span>
           <span class="text-slate-600">•</span>
           <span class="text-amber-300 font-semibold">SOL ONLY</span>
+          <span id="chain-status" class="text-[9px] mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-500 border border-slate-700 font-bold">LOCAL</span>
         </div>
       </div>
     </div>
@@ -762,6 +763,7 @@
       pendingPayment: null,
       walletPubkey: null,
       walletConnected: false,
+      onChainLastTx: null,
       solPaidTotal: 0,
       totalBlocksMined: 0,
       started: false,
@@ -1265,6 +1267,7 @@
       GAME.hash += val;
       GAME.totalHashEver += val;
       GAME.totalBlocksMined++;
+      queueOnChainMine(1);
 
       const rect = canvas.getBoundingClientRect();
       const x = cx - rect.left, y = cy - rect.top;
@@ -1645,6 +1648,8 @@
             showToast(`◎ SOL Balance: ${(bal / 1e9).toFixed(4)} SOL`);
           } catch (e) {}
         }
+        await loadOnChainConfig();
+        await ensurePlayerOnChain();
       } catch (e) {
         showToast('❌ Wallet connection rejected');
       }
@@ -2315,6 +2320,10 @@
     // Boot Initialization
     (function init() {
       const hasSave = loadSave();
+      loadOnChainConfig().then(() => {
+        if (GAME.walletConnected) ensurePlayerOnChain();
+      });
+      setInterval(flushOnChainMine, 5000);
       if (hasSave) {
         const resBtn = document.getElementById('resume-save-btn');
         resBtn.classList.remove('hidden');
