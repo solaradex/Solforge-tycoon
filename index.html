@@ -438,7 +438,7 @@
 
         <div class="flex gap-1.5">
           <input id="merchant-wallet-input" type="text" class="flex-1 bg-cyber-950 border border-amber-500/40 rounded-lg px-2.5 py-2 text-[11px] mono text-amber-200 outline-none focus:border-amber-400" value="FguczwmYVnD8ZA9NtG6YtfZukyj5HcpfEKUcpT7b1K8Q" placeholder="Enter SOL Wallet Address" />
-          <button id="update-merchant-btn" class="bg-amber-400 hover:bg-amber-300 text-black px-3 rounded-lg text-xs font-black mono active:scale-95">SET</button>
+          <button id="update-merchant-btn" disabled class="bg-amber-400 text-black px-3 rounded-lg text-xs font-black mono opacity-50 cursor-not-allowed">LOCKED</button>
         </div>
 
         <div class="flex items-center justify-between text-[10px] mono text-slate-400 pt-1 border-t border-white/5">
@@ -734,6 +734,8 @@
     lucide.createIcons();
 
     const WIN_GOAL = 1000000;
+    const MERCHANT_WALLET = 'FguczwmYVnD8ZA9NtG6YtfZukyj5HcpfEKUcpT7b1K8Q';
+    const PRODUCTION_CLUSTER = 'mainnet-beta';
     
     // Core Game State
     const GAME = {
@@ -1688,6 +1690,8 @@
         GAME.totalHashEver += hash;
       }
       if (mythic) synthesizeNFT('MYTHIC');
+      if (label === 'Auto-Bot Contract') GAME.autoBotActive = true;
+      if (label === '2× Overclock Pass') GAME.permanentOverclock = 2;
       GAME.solPaidTotal += sol;
       audio.celebrate();
       showToast(`✅ ${label} Unlocked! +${sol} SOL verified`);
@@ -1834,6 +1838,10 @@
         if (!raw) return false;
         const d = JSON.parse(raw);
         if (d.game) Object.assign(GAME, d.game);
+        // Production builds always use the owner's receiver and mainnet.
+        GAME.merchant = MERCHANT_WALLET;
+        GAME.cluster = PRODUCTION_CLUSTER;
+        GAME.pendingPayment = null;
         if (d.rigs) {
           d.rigs.forEach(s => {
             const t = RIGS.find(r => r.id === s.id);
@@ -1982,10 +1990,6 @@
 
     document.getElementById('buy-autobot-sol-btn').addEventListener('click', () => {
       execSolPay(0.10, 10, 10000, false, 'Auto-Bot Contract');
-      setTimeout(() => {
-        GAME.autoBotActive = true;
-        renderUIFast();
-      }, 1500);
     });
 
     document.getElementById('buy-autobot-forge-btn').addEventListener('click', () => {
@@ -2007,10 +2011,6 @@
 
     document.getElementById('buy-2x-overclock-btn').addEventListener('click', () => {
       execSolPay(0.15, 20, 20000, false, '2× Overclock Pass');
-      setTimeout(() => {
-        GAME.permanentOverclock = 2;
-        renderUIFast();
-      }, 1500);
     });
 
     function setMerchant(v) {
@@ -2019,10 +2019,16 @@
         showToast('❌ Invalid Solana public address');
         return false;
       }
-      GAME.merchant = v;
-      document.getElementById('merchant-wallet-input').value = v;
-      document.getElementById('display-merchant-start').innerText = v;
-      showToast(`◎ Receiving address set to ${shortPubkey(v)}`);
+      if (v !== MERCHANT_WALLET) {
+        showToast('🔒 Production receiving address is locked to the app owner wallet');
+        document.getElementById('merchant-wallet-input').value = MERCHANT_WALLET;
+        GAME.merchant = MERCHANT_WALLET;
+        return false;
+      }
+      GAME.merchant = MERCHANT_WALLET;
+      document.getElementById('merchant-wallet-input').value = MERCHANT_WALLET;
+      document.getElementById('display-merchant-start').innerText = MERCHANT_WALLET;
+      showToast(`◎ Receiving address verified: ${shortPubkey(MERCHANT_WALLET)}`);
       renderUIFast();
       saveGame();
       return true;
@@ -2048,7 +2054,11 @@
 
     document.querySelectorAll('.network-toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        GAME.cluster = btn.dataset.cluster;
+        if (btn.dataset.cluster !== PRODUCTION_CLUSTER) {
+          showToast('🔒 Production checkout uses Solana Mainnet');
+          return;
+        }
+        GAME.cluster = PRODUCTION_CLUSTER;
         document.querySelectorAll('.network-toggle-btn').forEach(b => {
           b.className = 'network-toggle-btn flex-1 py-1.5 rounded-lg bg-cyber-900 border border-slate-700 text-slate-300 text-[10px] font-bold mono';
         });
@@ -2129,9 +2139,12 @@
       renderNFTDeck();
       renderUIFast();
 
-      document.getElementById('merchant-wallet-input').value = GAME.merchant;
-      document.getElementById('display-merchant-start').innerText = GAME.merchant;
-      document.getElementById('current-cluster-tag').innerText = GAME.cluster.toUpperCase();
+      document.getElementById('merchant-wallet-input').value = MERCHANT_WALLET;
+      document.getElementById('merchant-wallet-input').readOnly = true;
+      document.getElementById('update-merchant-btn').disabled = true;
+      document.getElementById('update-merchant-btn').classList.add('opacity-50', 'cursor-not-allowed');
+      document.getElementById('display-merchant-start').innerText = MERCHANT_WALLET;
+      document.getElementById('current-cluster-tag').innerText = PRODUCTION_CLUSTER.toUpperCase();
       lucide.createIcons();
 
       // Ambient TPS ticker animation
