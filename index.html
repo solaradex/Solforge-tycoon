@@ -1576,6 +1576,7 @@
       const provider = getProvider();
       if (GAME.walletConnected && provider && window.solanaWeb3) {
         showTx(`Sending ${sol} SOL`, `Awaiting wallet signature for ${label}... (SOL ONLY)`);
+        let signature = null;
         try {
           const conn = paymentConnection();
           const from = new window.solanaWeb3.PublicKey(GAME.walletPubkey);
@@ -1594,13 +1595,18 @@
           tx.recentBlockhash = latest.blockhash;
 
           const sigResult = await provider.signAndSendTransaction(tx);
-          const signature = sigResult.signature || sigResult;
+          signature = sigResult.signature || sigResult;
           document.getElementById('tx-detail').innerText = `Confirming block ${shortPubkey(signature)}...`;
-          await conn.confirmTransaction({
-            signature,
-            blockhash: latest.blockhash,
-            lastValidBlockHeight: latest.lastValidBlockHeight
-          }, 'confirmed');
+
+          try {
+            await conn.confirmTransaction({
+              signature,
+              blockhash: latest.blockhash,
+              lastValidBlockHeight: latest.lastValidBlockHeight
+            }, 'confirmed');
+          } catch (_) {
+            // The RPC confirmation call can time out even when the transaction landed.
+          }
 
           const verified = await verifyDirectSignature(signature, rec, sol, GAME.walletPubkey);
           if (!verified) throw new Error('Could not verify transfer on-chain');
@@ -1615,6 +1621,22 @@
           await finalizeVerifiedPayment(signature);
           return;
         } catch (e) {
+          if (signature) {
+            try {
+              const landed = await verifyDirectSignature(signature, rec, sol, GAME.walletPubkey);
+              if (landed) {
+                GAME.pendingPayment = {
+                  type: 'direct',
+                  sol, forge, hash, mythic, label,
+                  receiver: rec,
+                  lamports: Math.floor(sol * 1e9),
+                  claimed: false
+                };
+                await finalizeVerifiedPayment(signature);
+                return;
+              }
+            } catch (_) {}
+          }
           hideTx();
           showToast('⚠️ Direct payment could not be verified — opening Solana Pay QR');
         }
