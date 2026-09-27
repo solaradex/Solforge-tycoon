@@ -24,7 +24,7 @@ if (existing) {
   process.exit(0);
 }
 
-const discriminator = Buffer.from('e8b9a5a08ea0f9d5', 'hex');
+const discriminator = Buffer.from('2c3e66f77ed082d7', 'hex');
 const data = Buffer.alloc(8 + 32 + 8);
 discriminator.copy(data, 0);
 hashMint.toBuffer().copy(data, 8);
