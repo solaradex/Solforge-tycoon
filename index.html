@@ -843,7 +843,7 @@
         new window.solanaWeb3.TransactionInstruction({
           programId: getOnChainProgramId(),
           keys,
-          data: Buffer.from(data)
+          data: data instanceof Uint8Array ? data : new Uint8Array(data)
         })
       );
 
@@ -877,7 +877,7 @@
         const info = await paymentConnection().getAccountInfo(pdas.playerPda, 'confirmed');
         if (info) return;
 
-        const data = Buffer.from(ONCHAIN_IX.initializePlayer);
+        const data = new Uint8Array(ONCHAIN_IX.initializePlayer);
         await sendOnChainInstruction(data, [
           { pubkey: pdas.configPda, isSigner: false, isWritable: true },
           { pubkey: pdas.playerPda, isSigner: false, isWritable: true },
@@ -896,9 +896,12 @@
 
       ONCHAIN.busy = true;
       const units = Math.min(500, ONCHAIN.pendingMine);
-      const data = Buffer.alloc(12);
-      Buffer.from(ONCHAIN_IX.mine).copy(data, 0);
-      data.writeUInt32LE(units, 8);
+      const data = new Uint8Array(12);
+      data.set(ONCHAIN_IX.mine, 0);
+      data[8] = units & 0xff;
+      data[9] = (units >>> 8) & 0xff;
+      data[10] = (units >>> 16) & 0xff;
+      data[11] = (units >>> 24) & 0xff;
 
       try {
         await sendOnChainInstruction(data, [
@@ -926,13 +929,13 @@
       try {
         const info = await paymentConnection().getAccountInfo(ONCHAIN.playerPda, 'confirmed');
         if (!info?.data || info.data.length < 150) return null;
-        const d = Buffer.from(info.data);
-        const hash = Number(d.readBigUInt64LE(40));
-        const totalHash = Number(d.readBigUInt64LE(48));
-        const forge = Number(d.readBigUInt64LE(56));
-        const cores = d.readUInt16LE(64);
-        const autoBot = d[66] === 1;
-        const overclockBps = d.readUInt16LE(67);
+        const d = new DataView(info.data.buffer, info.data.byteOffset, info.data.byteLength);
+        const hash = Number(d.getBigUint64(40, true));
+        const totalHash = Number(d.getBigUint64(48, true));
+        const forge = Number(d.getBigUint64(56, true));
+        const cores = d.getUint16(64, true);
+        const autoBot = d.getUint8(66) === 1;
+        const overclockBps = d.getUint16(67, true);
         return { hash, totalHash, forge, cores, autoBot, overclockBps };
       } catch (_) {
         return null;
@@ -1336,10 +1339,13 @@
         audio.buy();
         if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
           const rigIndex = RIGS.findIndex(r => r.id === rig.id);
-          const data = Buffer.alloc(13);
-          Buffer.from(ONCHAIN_IX.buyRig).copy(data, 0);
-          data.writeUInt8(rigIndex, 8);
-          data.writeUInt32LE(amount, 9);
+          const data = new Uint8Array(13);
+          data.set(ONCHAIN_IX.buyRig, 0);
+          data[8] = rigIndex & 0xff;
+          data[9] = amount & 0xff;
+          data[10] = (amount >>> 8) & 0xff;
+          data[11] = (amount >>> 16) & 0xff;
+          data[12] = (amount >>> 24) & 0xff;
           sendOnChainInstruction(data, [
             { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
             { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
@@ -1424,7 +1430,7 @@
         const tierOrder = ['COMMON','RARE','EPIC','LEGENDARY','MYTHIC'];
         const tierIndex = tierOrder.indexOf(tierKey || 'COMMON');
         const data = new Uint8Array(9);
-        Buffer.from(ONCHAIN_IX.synthesizeRelic).copy(data, 0);
+        data.set(ONCHAIN_IX.synthesizeRelic, 0);
         data[8] = Math.max(0, tierIndex);
         sendOnChainInstruction(data, [
           { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
@@ -1602,7 +1608,7 @@
       renderUIFast();
       saveGame();
       if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
-        const data = Buffer.from(ONCHAIN_IX.hardFork);
+        const data = new Uint8Array(ONCHAIN_IX.hardFork);
         sendOnChainInstruction(data, [
           { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
           { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
@@ -2183,7 +2189,7 @@
       renderUIFast();
       saveGame();
       if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
-        const data = Buffer.from(ONCHAIN_IX.claimDaily);
+        const data = new Uint8Array(ONCHAIN_IX.claimDaily);
         sendOnChainInstruction(data, [
           { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
           { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
@@ -2246,7 +2252,7 @@
       saveGame();
       if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
         const data = new Uint8Array(9);
-        Buffer.from(ONCHAIN_IX.setAutoBot).copy(data, 0);
+        data.set(ONCHAIN_IX.setAutoBot, 0);
         data[8] = 1;
         sendOnChainInstruction(data, [
           { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
