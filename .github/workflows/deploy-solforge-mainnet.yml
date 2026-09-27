@@ -60,7 +60,11 @@ jobs:
           chmod 600 target/deploy/solforge_game-keypair.json
 
       - name: Sync program ID
-        run: anchor keys sync
+        run: |
+          anchor keys sync
+          PROGRAM_ID=$(anchor keys list | awk '/solforge_game/ {print $2; exit}')
+          test -n "$PROGRAM_ID"
+          echo "SOLFORGE_PROGRAM_ID=$PROGRAM_ID" >> "$GITHUB_ENV"
 
       - name: Verify deployer and program IDs
         run: |
