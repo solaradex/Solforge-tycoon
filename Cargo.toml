@@ -1,0 +1,3 @@
+[workspace]
+members = ["programs/solforge-game"]
+resolver = "2"
