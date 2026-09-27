@@ -1,0 +1,13 @@
+{
+  "name": "SolForge Hash",
+  "symbol": "HASH",
+  "decimals": 0,
+  "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  "maxSupply": 1000000000,
+  "distribution": {
+    "gameRewards": 800000000,
+    "treasury": 100000000,
+    "liquidity": 100000000
+  },
+  "notes": "Initial game design. Supply is enforced by the SolForge gameplay program; the mint authority should be transferred to the game config PDA before mainnet launch."
+}
