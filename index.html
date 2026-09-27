@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Solana Web3.js -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <!-- QR Code renderer for Solana Pay -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   
@@ -152,7 +154,7 @@
       <div>
         <div class="flex items-center gap-1.5">
           <span class="text-xs font-extrabold tracking-wider uppercase solana-gradient-text">SOLFORGE</span>
-          <span id="current-cluster-tag" class="text-[9px] mono px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-500/40 font-bold">DEVNET</span>
+          <span id="current-cluster-tag" class="text-[9px] mono px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-500/40 font-bold">MAINNET-BETA</span>
         </div>
         <div class="flex items-center gap-1.5 text-[10px] mono text-slate-400">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -431,11 +433,11 @@
           <span class="text-xs font-black text-amber-300 flex items-center gap-1.5">
             <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Connected SOL Receiving Account
           </span>
-          <span id="merchant-cluster-pill" class="text-[9px] mono px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/40 font-bold">DEVNET</span>
+          <span id="merchant-cluster-pill" class="text-[9px] mono px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/40 font-bold">MAINNET-BETA</span>
         </div>
 
         <div class="flex gap-1.5">
-          <input id="merchant-wallet-input" type="text" class="flex-1 bg-cyber-950 border border-amber-500/40 rounded-lg px-2.5 py-2 text-[11px] mono text-amber-200 outline-none focus:border-amber-400" value="Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS" placeholder="Enter SOL Wallet Address" />
+          <input id="merchant-wallet-input" type="text" class="flex-1 bg-cyber-950 border border-amber-500/40 rounded-lg px-2.5 py-2 text-[11px] mono text-amber-200 outline-none focus:border-amber-400" value="FguczwmYVnD8ZA9NtG6YtfZukyj5HcpfEKUcpT7b1K8Q" placeholder="Enter SOL Wallet Address" />
           <button id="update-merchant-btn" class="bg-amber-400 hover:bg-amber-300 text-black px-3 rounded-lg text-xs font-black mono active:scale-95">SET</button>
         </div>
 
@@ -702,9 +704,9 @@
 
       <div class="flex gap-2">
         <button id="solpay-copy-link" class="flex-1 py-2 bg-cyber-800 border border-slate-700 rounded-xl text-[10px] font-bold mono active:scale-95">Copy Pay URL</button>
-        <button id="solpay-simulate-btn" class="flex-1 py-2 bg-gradient-to-r from-purple-600 to-cyber-solblue text-black font-extrabold rounded-xl text-[10px] active:scale-95">I Paid — Verify</button>
+        <button id="solpay-verify-btn" class="flex-1 py-2 bg-gradient-to-r from-purple-600 to-cyber-solblue text-black font-extrabold rounded-xl text-[10px] active:scale-95">Check Payment</button>
       </div>
-      <p class="text-[9px] mono text-slate-500">SystemProgram.transfer ONLY. No SPL tokens accepted.</p>
+      <p class="text-[9px] mono text-slate-500">Native SOL only. Rewards unlock only after an on-chain transfer to the receiver is verified.</p>
     </div>
   </div>
 
@@ -753,8 +755,9 @@
       inventoryNFTs: [],
       buyMult: '1',
       soundEnabled: true,
-      cluster: 'devnet',
-      merchant: 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS',
+      cluster: 'mainnet-beta',
+      merchant: 'FguczwmYVnD8ZA9NtG6YtfZukyj5HcpfEKUcpT7b1K8Q',
+      pendingPayment: null,
       walletPubkey: null,
       walletConnected: false,
       solPaidTotal: 0,
@@ -1449,10 +1452,10 @@
     async function connectWallet() {
       const p = getProvider();
       if (!p) {
-        GAME.walletPubkey = 'Demo' + Math.floor(1000 + Math.random() * 9000);
+        GAME.walletPubkey = null;
         GAME.walletConnected = false;
-        document.getElementById('wallet-btn-label').innerText = shortPubkey(GAME.walletPubkey);
-        showToast('⚠️ No Phantom — Testnet QR Mode (SOL Only)');
+        document.getElementById('wallet-btn-label').innerText = 'Connect SOL';
+        showToast('⚠️ Wallet extension not detected — use the Solana Pay QR at checkout');
         return;
       }
       try {
@@ -1487,22 +1490,79 @@
       document.getElementById('tx-modal').classList.add('hidden');
     }
 
-    function drawQR(cv, text) {
-      const q = cv.getContext('2d'), w = cv.width, h = cv.height;
-      q.fillStyle = '#fff';
-      q.fillRect(0, 0, w, h);
-      q.fillStyle = '#060b1e';
-      const cell = 6;
-      let hv = 0;
-      for (let i = 0; i < text.length; i++) hv = (hv << 5) - hv + text.charCodeAt(i);
-      for (let r = 0; r < w; r += cell) {
-        for (let c = 0; c < h; c += cell) {
-          const bit = Math.abs(Math.sin(hv + r * 13 + c * 37));
-          if (bit > 0.45 || (r < 30 && c < 30) || (r > w - 36 && c < 30) || (r < 30 && c > h - 36)) {
-            q.fillRect(r, c, cell - 1, cell - 1);
-          }
+    async function drawQR(cv, text) {
+      if (!window.QRCode) throw new Error('QR renderer unavailable');
+      await window.QRCode.toCanvas(cv, text, {
+        width: 180,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#060b1e', light: '#ffffff' }
+      });
+    }
+
+    function paymentConnection() {
+      return new window.solanaWeb3.Connection(
+        `https://api.${GAME.cluster}.solana.com`,
+        'confirmed'
+      );
+    }
+
+    function systemTransferMatches(parsedTx, receiver, expectedLamports, sender = null) {
+      if (!parsedTx || parsedTx.meta?.err) return false;
+      const instructions = parsedTx.transaction?.message?.instructions || [];
+      return instructions.some(ix => {
+        const parsed = ix?.parsed;
+        if (ix?.program !== 'system' || !parsed || parsed.type !== 'transfer') return false;
+        const info = parsed.info || {};
+        if (info.destination !== receiver) return false;
+        if (Number(info.lamports) < expectedLamports) return false;
+        if (sender && info.source !== sender) return false;
+        return true;
+      });
+    }
+
+    async function verifyDirectSignature(signature, receiver, sol, sender) {
+      const conn = paymentConnection();
+      const tx = await conn.getParsedTransaction(signature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0
+      });
+      return systemTransferMatches(tx, receiver, Math.floor(sol * 1e9), sender);
+    }
+
+    async function verifyQrPayment() {
+      const p = GAME.pendingPayment;
+      if (!p || p.type !== 'qr' || p.claimed) return false;
+
+      const conn = paymentConnection();
+      const sigs = await conn.getSignaturesForAddress(p.reference, { limit: 10 });
+      for (const entry of sigs) {
+        if (!entry?.signature) continue;
+        const tx = await conn.getParsedTransaction(entry.signature, {
+          commitment: 'confirmed',
+          maxSupportedTransactionVersion: 0
+        });
+        if (systemTransferMatches(tx, p.receiver, p.lamports)) {
+          p.claimed = true;
+          p.signature = entry.signature;
+          return true;
         }
       }
+      return false;
+    }
+
+    async function finalizeVerifiedPayment(signature) {
+      const p = GAME.pendingPayment;
+      if (!p || p.claimed) return;
+      p.claimed = true;
+      grantReward(p.sol, p.forge, p.hash, p.mythic, p.label);
+      showToast(`✅ ${p.label} paid on-chain — ${p.sol} SOL received`);
+      document.getElementById('tx-spinner').classList.add('hidden');
+      document.getElementById('tx-icon-success').classList.remove('hidden');
+      document.getElementById('tx-detail').innerText =
+        `Confirmed ${p.sol} SOL → ${shortPubkey(p.receiver)} • ${shortPubkey(signature)}`;
+      document.getElementById('tx-actions').classList.remove('hidden');
+      GAME.pendingPayment = null;
     }
 
     async function execSolPay(sol, forge, hash, mythic, label) {
@@ -1513,16 +1573,14 @@
       }
 
       const provider = getProvider();
-      // Phantom Direct Transfer in SOL
       if (GAME.walletConnected && provider && window.solanaWeb3) {
         showTx(`Sending ${sol} SOL`, `Awaiting wallet signature for ${label}... (SOL ONLY)`);
         try {
-          const conn = new window.solanaWeb3.Connection(`https://api.${GAME.cluster}.solana.com`, 'confirmed');
+          const conn = paymentConnection();
           const from = new window.solanaWeb3.PublicKey(GAME.walletPubkey);
           const to = new window.solanaWeb3.PublicKey(rec);
           const lam = Math.floor(sol * 1e9);
 
-          // Pure SOL transfer instruction
           const tx = new window.solanaWeb3.Transaction().add(
             window.solanaWeb3.SystemProgram.transfer({
               fromPubkey: from,
@@ -1531,46 +1589,90 @@
             })
           );
           tx.feePayer = from;
-          const { blockhash } = await conn.getLatestBlockhash();
-          tx.recentBlockhash = blockhash;
+          const latest = await conn.getLatestBlockhash('confirmed');
+          tx.recentBlockhash = latest.blockhash;
 
-          const sig = await provider.signAndSendTransaction(tx);
-          document.getElementById('tx-detail').innerText = `Confirming block ${shortPubkey(sig.signature || sig)}...`;
-          await conn.confirmTransaction(sig.signature || sig, 'confirmed');
+          const sigResult = await provider.signAndSendTransaction(tx);
+          const signature = sigResult.signature || sigResult;
+          document.getElementById('tx-detail').innerText = `Confirming block ${shortPubkey(signature)}...`;
+          await conn.confirmTransaction({
+            signature,
+            blockhash: latest.blockhash,
+            lastValidBlockHeight: latest.lastValidBlockHeight
+          }, 'confirmed');
 
-          grantReward(sol, forge, hash, mythic, label);
-          document.getElementById('tx-spinner').classList.add('hidden');
-          document.getElementById('tx-icon-success').classList.remove('hidden');
-          document.getElementById('tx-detail').innerText = `Confirmed ${sol} SOL → ${shortPubkey(rec)}`;
-          document.getElementById('tx-actions').classList.remove('hidden');
+          const verified = await verifyDirectSignature(signature, rec, sol, GAME.walletPubkey);
+          if (!verified) throw new Error('Could not verify transfer on-chain');
+
+          GAME.pendingPayment = {
+            type: 'direct',
+            sol, forge, hash, mythic, label,
+            receiver: rec,
+            lamports: lam,
+            claimed: false
+          };
+          await finalizeVerifiedPayment(signature);
           return;
         } catch (e) {
           hideTx();
-          showToast('⚠️ Direct signature dismissed — opening Solana Pay QR (SOL Only)');
+          showToast('⚠️ Direct payment could not be verified — opening Solana Pay QR');
         }
       }
 
       openSolPay(sol, forge, hash, mythic, label);
     }
 
-    function openSolPay(sol, forge, hash, mythic, label) {
+    async function openSolPay(sol, forge, hash, mythic, label) {
       const rec = GAME.merchant;
-      const url = `solana:${rec}?amount=${sol}&label=SolForgeTycoon&message=${encodeURIComponent(label)}&splToken=SOL`;
+      const reference = window.solanaWeb3.Keypair.generate().publicKey.toBase58();
+      const url = `solana:${rec}?amount=${sol}&label=SolForgeTycoon&message=${encodeURIComponent(label)}&reference=${reference}`;
+
       document.getElementById('solpay-addr-text').innerText = shortPubkey(rec);
       document.getElementById('solpay-amt-text').innerText = sol + ' SOL';
       document.getElementById('solpay-for-text').innerText = label;
-      drawQR(document.getElementById('solpay-canvas'), url);
+
+      GAME.pendingPayment = {
+        type: 'qr',
+        sol, forge, hash, mythic, label,
+        receiver: rec,
+        lamports: Math.floor(sol * 1e9),
+        reference,
+        claimed: false
+      };
+
+      try {
+        await drawQR(document.getElementById('solpay-canvas'), url);
+      } catch (e) {
+        GAME.pendingPayment = null;
+        showToast('❌ QR renderer failed to load');
+        return;
+      }
 
       const modal = document.getElementById('solpay-modal');
       modal.classList.remove('hidden');
 
-      document.getElementById('solpay-simulate-btn').onclick = () => {
-        modal.classList.add('hidden');
-        showTx('Verifying SOL Transfer...', `Scanning ledger for ${sol} SOL to ${shortPubkey(rec)}`);
-        setTimeout(() => {
+      document.getElementById('solpay-verify-btn').onclick = async () => {
+        const btn = document.getElementById('solpay-verify-btn');
+        btn.disabled = true;
+        btn.innerText = 'Checking…';
+        try {
+          showTx('Verifying SOL Transfer...', `Scanning ${GAME.cluster} for ${sol} SOL to ${shortPubkey(rec)}`);
+          const started = Date.now();
+          let verified = false;
+          while (Date.now() - started < 30000 && !verified) {
+            verified = await verifyQrPayment();
+            if (!verified) await new Promise(resolve => setTimeout(resolve, 2500));
+          }
+          if (!verified) throw new Error('Payment not found');
+          document.getElementById('solpay-modal').classList.add('hidden');
+          await finalizeVerifiedPayment(GAME.pendingPayment.signature);
+        } catch (e) {
           hideTx();
-          grantReward(sol, forge, hash, mythic, label);
-        }, 1200);
+          showToast('⏳ Payment not found yet. Confirm the wallet sent the exact SOL amount and try again.');
+        } finally {
+          btn.disabled = false;
+          btn.innerText = 'Check Payment';
+        }
       };
 
       document.getElementById('solpay-copy-link').onclick = () => {
