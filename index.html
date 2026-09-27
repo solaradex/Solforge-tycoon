@@ -1545,7 +1545,6 @@
           maxSupportedTransactionVersion: 0
         });
         if (systemTransferMatches(tx, p.receiver, p.lamports)) {
-          p.claimed = true;
           p.signature = entry.signature;
           return true;
         }
