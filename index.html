@@ -1334,6 +1334,18 @@
         GAME.hash -= cost;
         rig.count += amount;
         audio.buy();
+        if (ONCHAIN.enabled && GAME.walletConnected && ONCHAIN.playerPda) {
+          const rigIndex = RIGS.findIndex(r => r.id === rig.id);
+          const data = Buffer.alloc(13);
+          Buffer.from(ONCHAIN_IX.buyRig).copy(data, 0);
+          data.writeUInt8(rigIndex, 8);
+          data.writeUInt32LE(amount, 9);
+          sendOnChainInstruction(data, [
+            { pubkey: ONCHAIN.configPda, isSigner: false, isWritable: false },
+            { pubkey: ONCHAIN.playerPda, isSigner: false, isWritable: true },
+            { pubkey: new window.solanaWeb3.PublicKey(GAME.walletPubkey), isSigner: true, isWritable: false }
+          ], `Saving ${amount}x ${rig.name} on Solana`).catch(() => {});
+        }
         showToast(`⚡ +${amount}x ${rig.name}`);
         renderRigsList();
         renderUIFast();
